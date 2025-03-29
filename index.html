@@ -28,8 +28,11 @@
 	const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = 1100;
-canvas.height = 800;
+const dpr = window.devicePixelRatio || 1;
+const width = 1100;  // Logical width
+const height = 800;  // Logical height
+canvas.width = width*dpr;
+canvas.height = height*dpr;
 const minDistance = 100;
 const pointCount = 12;
 let points = [];
