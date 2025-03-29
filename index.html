@@ -28,11 +28,8 @@
 	const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const dpr = window.devicePixelRatio || 1;
-const width = 1100;  // Logical width
-const height = 800;  // Logical height
-canvas.width = width*dpr;
-canvas.height = height*dpr;
+canvas.width = 1100;
+canvas.height = 800;
 const minDistance = 100;
 const pointCount = 12;
 let points = [];
@@ -102,7 +99,6 @@ function generatePoints() {
 			if (!countValidOneCrossLines){
 				location.reload();
 			}
-		console.log(`Canvas scaled for DPR: ${dpr}`);
             break;
         }
     }
