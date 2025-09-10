@@ -338,7 +338,7 @@ canvas.addEventListener("click", function (event) {
     let clickX = event.offsetX;
     let clickY = event.offsetY;
 
-    clickedPoint = points.find(p => distance(p, { x: clickX, y: clickY }) < 10);
+    clickedPoint = points.find(p => distance(p, { x: clickX, y: clickY }) < 20);
     if (clickedPoint) {
         if (!firstSelectedPoint) {
             firstSelectedPoint = clickedPoint; // Store first point
@@ -426,3 +426,4 @@ window.onload = generatePoints;
 	</script>
 </body>
 </html>
+
