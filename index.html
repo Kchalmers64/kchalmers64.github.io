@@ -8,16 +8,14 @@
 <body>
 <style>
         #validlineButton {
-            position: absolute;
-            top: 820px;
-            left: 50%;
-			transform: translateX(-50%);
-            padding: 10px 20px;
-            font-size: 12px;
-            cursor: pointer;
-			background-color: #2e3440;
-			border-color: #eceff4;
-			color: #eceff4;
+    display: block;
+    margin: 20px auto 0; /* 20px top margin, centered */
+    padding: 10px 20px;
+    font-size: 12px;
+    cursor: pointer;
+    background-color: #2e3440;
+    border: 1px solid #eceff4;
+    color: #eceff4;
         }
 		body {
             background-color: #2e3440;
@@ -25,12 +23,28 @@
     </style>
     <canvas id="gameCanvas" width="1100" height="800" style="background-color:#eceff4; display: block; margin: 0 auto;"></canvas>
 	<button id="validlineButton">Toggle Helper Lines</button>
+	
     <script>
 	const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = 1100;
-canvas.height = 800;
+if (window.innerHeight > window.innerWidth) {
+    // Portrait A4
+    let targetHeight = Math.min(window.innerHeight * 0.9, 1500);
+    let targetWidth = targetHeight / 1.41;
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+} else {
+    // Landscape A4
+    let targetWidth = Math.min(window.innerWidth * 0.9, 1100);
+    let targetHeight = targetWidth / 1.41;
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+}
+console.log(canvas.width, canvas.height);
+
+//canvas.width = 1100;
+//canvas.height = 800;
 const minDistance = 100;
 const pointCount = 12;
 let points = [];
@@ -107,11 +121,11 @@ function generatePoints() {
 
 function drawPoints() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "purple";
+    ctx.fillStyle = "#5e81ac";
     ctx.font = "10px Arial";
     points.forEach(p => {
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
+        ctx.arc(p.x, p.y, canvas.width*0.008, 0, 2 * Math.PI);
         ctx.fill();
 		/*draw text
         ctx.fillStyle = "blue";
@@ -129,8 +143,8 @@ function connectClosestPoints() {
     ctx.beginPath();
     ctx.moveTo(point1.x, point1.y);
     ctx.lineTo(point2.x, point2.y);
-    ctx.strokeStyle = "purple";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#5e81ac";
+    ctx.lineWidth = canvas.width*0.002;
     ctx.stroke();
     existingLines.push([point1, point2]);
 }
@@ -143,10 +157,10 @@ function distanceFromCenter(p) {
 
 function drawGameInfo(validLines) {
     // Define text position
-    let textX = 5, textY = 795;
+    let textX = 5, textY = canvas.height-5;
 
     // Set text properties
-    ctx.fillStyle = "black";
+    ctx.fillStyle = "#2e3440";
     ctx.font = "12px Arial";
 	if (validLines > 0){
     ctx.fillText(`${validLines} valid line(s) in ROUND ${round}`, textX, textY);
@@ -158,8 +172,8 @@ function drawGameInfo(validLines) {
 			ctx.fillText(`Game Over, Player 2 wins with ${p_two_score} points`, textX, textY);
 		}else ctx.fillText(`The game ends in a draw`, textX, textY);
 	}
-	ctx.fillText(`Player 1(${p_one_score})`, textX+1030, textY-15);
-	ctx.fillText(`Player 2(${p_two_score})`, textX+1030, textY);
+	ctx.fillText(`Player 1(${p_one_score})`, canvas.width-65, textY-15);
+	ctx.fillText(`Player 2(${p_two_score})`, canvas.width-65, textY);
 	activePlayer();
 	ctx.textAlign = "center";
 	ctx.font = "18px Arial";
@@ -242,7 +256,7 @@ function countValidOneCrossLines() {
 
                 if (validlineToggle % 2 > 0){
 				// Draw the valid line in thin grey
-                ctx.strokeStyle = "lightgrey";
+                ctx.strokeStyle = "#d08770";
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(newLine[0].x, newLine[0].y);
@@ -275,7 +289,7 @@ function clearValidLines() {
 }
 
 function drawExistingLines() {
-    ctx.strokeStyle = "purple";
+    ctx.strokeStyle = "#5e81ac";
 
     ctx.lineWidth = 2;
     for (let line of existingLines) {
@@ -302,12 +316,12 @@ function drawErrorInfo() {
 	ctx.textAlign = "center";
 	let textX = canvas.width/2;
 	let textY = canvas.height/2;
-	ctx.fillStyle = "white";
+	ctx.fillStyle = "#eceff4";
 	ctx.rect(textX - 200, textY - 30, 400, 50);
 	ctx.fill();
 
     // Set text properties
-    ctx.fillStyle = "black";
+    ctx.fillStyle = "#2e3440";
     ctx.font = "20px Arial";
     ctx.fillText(`ERROR, you have to cross exactly ${round} line(s)`, textX, textY);
 	ctx.textAlign = "left";
@@ -342,7 +356,7 @@ canvas.addEventListener("click", function (event) {
 
             if (!isAlreadyDrawn && isValidLine) {
                 existingLines.push([p1, p2]);
-                ctx.strokeStyle = "black";
+                ctx.strokeStyle = "#2e3440";
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(p1.x, p1.y);
@@ -397,7 +411,7 @@ function drawCanvas() {
 
     // If a first point is selected, draw a temporary line to the cursor
     if (firstSelectedPoint) {
-        ctx.strokeStyle = "purple";
+        ctx.strokeStyle = "#d08770";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(firstSelectedPoint.x, firstSelectedPoint.y);
@@ -412,5 +426,3 @@ window.onload = generatePoints;
 	</script>
 </body>
 </html>
-
-
