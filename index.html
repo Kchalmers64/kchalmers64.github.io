@@ -1,430 +1,2300 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>line.line</title>
-</head>
-<body>
-<style>
-        #validlineButton {
-    display: block;
-    margin: 20px auto 0; /* 20px top margin, centered */
-    padding: 10px 20px;
-    font-size: 12px;
-    cursor: pointer;
-    background-color: #2e3440;
-    border: 1px solid #eceff4;
-    color: #eceff4;
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>line.line — Strategic Geometry Game</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono for Chess Timer -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
         }
-		body {
-            background-color: #2e3440;
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        /* Fluid responsive typography using clamp() for mobile through desktop */
+        .fluid-player-name {
+            font-size: clamp(0.78rem, 2.5vw, 1.05rem);
+            line-height: 1.2;
+        }
+        .fluid-score {
+            font-size: clamp(0.68rem, 1.9vw, 0.8rem);
+        }
+        .fluid-timer {
+            font-size: clamp(0.95rem, 3.2vw, 1.35rem);
+            line-height: 1.1;
+        }
+        .fluid-status {
+            font-size: clamp(0.6rem, 1.6vw, 0.7rem);
+        }
+        .fluid-badge {
+            font-size: clamp(0.68rem, 2vw, 0.82rem);
+        }
+        .fluid-btn {
+            font-size: clamp(0.72rem, 2.1vw, 0.875rem);
+        }
+        /* Subtle dot grid background for canvas container */
+        .board-surface {
+            background-color: #f8fafc;
+            background-image: radial-gradient(#cbd5e1 1.25px, transparent 1.25px);
+            background-size: 22px 22px;
+            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+            cursor: crosshair;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        /* Active player glow transition */
+        .player-card {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes pulse-urgent {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.78; transform: scale(0.975); }
+        }
+        .timer-urgent {
+            animation: pulse-urgent 0.85s infinite ease-in-out;
         }
     </style>
-    <canvas id="gameCanvas" width="1100" height="800" style="background-color:#eceff4; display: block; margin: 0 auto;"></canvas>
-	<button id="validlineButton">Toggle Helper Lines</button>
-	
+</head>
+<body class="flex flex-col justify-between h-[100dvh] bg-slate-950 text-slate-100 font-sans select-none overflow-hidden">
+
+    <!-- TOP BAR: Player 1 & Player 2 Cards + Center Round & Win Probability Status -->
+    <header class="w-full max-w-6xl mx-auto px-2 sm:px-5 pt-1.5 sm:pt-3 pb-1 shrink-0">
+        <div class="grid grid-cols-2 lg:grid-cols-12 gap-1.5 sm:gap-2.5 items-center">
+            
+            <!-- PLAYER 1 CARD -->
+            <div id="p1Card" class="player-card lg:col-span-4 relative rounded-xl sm:rounded-2xl bg-slate-900/90 border-2 border-slate-800 p-1.5 sm:p-2.5 flex items-center justify-between gap-1.5 sm:gap-2 cursor-pointer hover:border-slate-700 group"
+                 onclick="openPlayerModal(1)" title="Tap to customize Player 1 name & color">
+                <!-- Left: Color Indicator + Name + Score -->
+                <div class="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+                    <div class="relative shrink-0">
+                        <span id="p1Swatch" class="block w-3 h-8 sm:w-4 sm:h-10 rounded-full shadow-inner transition-transform group-hover:scale-105" style="background-color: #2563eb;"></span>
+                        <span id="p1TurnDot" class="hidden -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-400 ring-2 ring-slate-900"></span>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1">
+                            <span id="p1NameDisplay" class="fluid-player-name font-bold text-white truncate">Player 1</span>
+                            <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 opacity-70 group-hover:opacity-100 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                            </svg>
+                        </div>
+                        <div class="flex items-center gap-1 mt-0.5">
+                            <span id="p1ScoreDisplay" class="fluid-score inline-flex items-center px-1.5 py-0.5 rounded-md font-bold bg-slate-800 text-white">0 pts</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Turn Countdown Clock -->
+                <div id="p1TimerBox" class="shrink-0 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-950/90 border border-slate-800 text-right transition-colors">
+                    <div class="fluid-status uppercase tracking-wider text-slate-400 font-semibold leading-none mb-0.5 flex items-center justify-end gap-1">
+                        <span id="p1StatusLabel">Ready</span>
+                    </div>
+                    <div id="p1TimerDisplay" class="fluid-timer font-mono font-bold tracking-tight text-slate-400">0:30</div>
+                </div>
+            </div>
+
+            <!-- CENTER STATUS PANEL (Spans full width below cards on mobile, center column on desktop) -->
+            <div class="col-span-2 lg:col-span-4 order-3 lg:order-2 bg-slate-900/80 border border-slate-800/90 rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:py-2 flex flex-col gap-1.5">
+                <!-- Top Row: Round Stepper + Valid Lines Counter -->
+                <div class="flex items-center justify-between sm:justify-around gap-1.5">
+                    <div class="flex items-center gap-1 sm:gap-1.5">
+                        <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mr-0.5 hidden sm:inline">Round</span>
+                        <div id="roundBadge1" class="fluid-badge px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-lg font-bold transition-all">R1 <span class="opacity-75 font-normal">(1×)</span></div>
+                        <div id="roundBadge2" class="fluid-badge px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-lg font-bold transition-all">R2 <span class="opacity-75 font-normal">(2×)</span></div>
+                        <div id="roundBadge3" class="fluid-badge px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-lg font-bold transition-all">R3 <span class="opacity-75 font-normal">(3×)</span></div>
+                    </div>
+
+                    <div class="h-4 w-px bg-slate-800"></div>
+
+                    <div class="flex items-center gap-2 text-right">
+                        <div class="leading-tight">
+                            <div id="ruleHintText" class="fluid-badge font-semibold text-slate-200">Press <span class="text-emerald-400 font-bold">Play</span></div>
+                            <div class="fluid-status text-slate-400"><span id="validMovesCount" class="font-bold text-emerald-400">—</span> valid moves</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Row: Live Total Win Probability Bar & Percentage Counter -->
+                <div class="w-full pt-0.5 border-t border-slate-800/80">
+                    <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-mono font-bold leading-none mb-1">
+                        <span id="p1WinProbText" class="transition-colors" style="color: #60a5fa;">P1 50%</span>
+                        <span class="text-[9px] sm:text-[10px] font-sans uppercase tracking-wider text-slate-400 font-semibold">Win Probability</span>
+                        <span id="p2WinProbText" class="transition-colors" style="color: #fb7185;">50% P2</span>
+                    </div>
+                    <div class="w-full h-2 sm:h-2.5 rounded-full bg-slate-950 overflow-hidden flex p-0.5 border border-slate-800/90">
+                        <div id="p1WinProbBar" class="h-full rounded-l-full transition-all duration-300 ease-out" style="width: 50%; background-color: #2563eb;"></div>
+                        <div id="p2WinProbBar" class="h-full rounded-r-full transition-all duration-300 ease-out" style="width: 50%; background-color: #e11d48;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PLAYER 2 CARD -->
+            <div id="p2Card" class="player-card lg:col-span-4 order-2 lg:order-3 relative rounded-xl sm:rounded-2xl bg-slate-900/90 border-2 border-slate-800 p-1.5 sm:p-2.5 flex items-center justify-between gap-1.5 sm:gap-2 cursor-pointer hover:border-slate-700 group"
+                 onclick="openPlayerModal(2)" title="Tap to customize Player 2 name & color">
+                <!-- Left: Color Indicator + Name + Score -->
+                <div class="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
+                    <div class="relative shrink-0">
+                        <span id="p2Swatch" class="block w-3 h-8 sm:w-4 sm:h-10 rounded-full shadow-inner transition-transform group-hover:scale-105" style="background-color: #e11d48;"></span>
+                        <span id="p2TurnDot" class="hidden -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-emerald-400 ring-2 ring-slate-900"></span>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-1">
+                            <span id="p2NameDisplay" class="fluid-player-name font-bold text-white truncate">Player 2</span>
+                            <svg class="w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-400 opacity-70 group-hover:opacity-100 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+                            </svg>
+                        </div>
+                        <div class="flex items-center gap-1 mt-0.5">
+                            <span id="p2ScoreDisplay" class="fluid-score inline-flex items-center px-1.5 py-0.5 rounded-md font-bold bg-slate-800 text-white">0 pts</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Turn Countdown Clock -->
+                <div id="p2TimerBox" class="shrink-0 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg sm:rounded-xl bg-slate-950/90 border border-slate-800 text-right transition-colors">
+                    <div class="fluid-status uppercase tracking-wider text-slate-400 font-semibold leading-none mb-0.5 flex items-center justify-end gap-1">
+                        <span id="p2StatusLabel">Ready</span>
+                    </div>
+                    <div id="p2TimerDisplay" class="fluid-timer font-mono font-bold tracking-tight text-slate-400">0:30</div>
+                </div>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- MAIN INTERACTIVE BOARD AREA -->
+    <main id="canvasContainer" class="relative flex-1 w-full max-w-6xl mx-auto px-2 sm:px-5 py-1 flex items-center justify-center min-h-0 overflow-hidden">
+        <!-- Responsive wrapper around the canvas -->
+        <div id="boardWrapper" class="board-surface relative rounded-xl sm:rounded-2xl overflow-hidden flex items-center justify-center transition-all">
+            <canvas id="gameCanvas"></canvas>
+
+            <!-- Floating Toast Notification for Invalid Move / Timeout / Round Complete -->
+            <div id="feedbackToast" class="pointer-events-none absolute top-2.5 sm:top-4 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-md transition-all duration-200 opacity-0 -translate-y-2 flex justify-center">
+                <div id="feedbackToastInner" class="px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-xl font-semibold fluid-badge text-center flex items-center justify-center gap-2 border backdrop-blur-md">
+                    <span id="feedbackToastText">Notification</span>
+                </div>
+            </div>
+
+            <!-- PRE-GAME LOBBY OVERLAY (Requires Manual 'Play' Press) -->
+            <div id="startLobbyOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-25 flex flex-col items-center justify-center p-3 sm:p-6 text-center overflow-y-auto">
+                <div class="bg-slate-900/95 border border-slate-800 rounded-2xl max-w-md w-full p-4 sm:p-5 shadow-2xl my-auto">
+                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-1.5">
+                        <span>Strategic Geometry Duel</span>
+                    </div>
+                    <h1 class="text-xl sm:text-3xl font-extrabold text-white tracking-tight mb-1">line.line</h1>
+                    <p class="text-xs sm:text-sm text-slate-400 mb-3.5">
+                        Choose your game mode, customize player names &amp; line colors, and press <strong class="text-white">Play Game</strong> to begin.
+                    </p>
+
+                    <!-- Game Mode Selector: 1v1 PvP vs 1v1 Player vs Bot -->
+                    <div class="mb-3.5">
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Game Mode</div>
+                        <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                            <button id="modePvPBtn" type="button" onclick="setGameMode('PVP')"
+                                    class="py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition bg-indigo-600 text-white shadow flex items-center justify-center gap-1.5">
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                <span>1v1 (Player vs Player)</span>
+                            </button>
+                            <button id="modePvBBtn" type="button" onclick="setGameMode('PVB')"
+                                    class="py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white flex items-center justify-center gap-1.5">
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                                </svg>
+                                <span>1v1 (Player vs Bot)</span>
+                            </button>
+                        </div>
+
+                        <!-- Turn Order Sub-Selector when Player vs Bot is active -->
+                        <div id="botOrderRow" class="hidden mt-2 bg-slate-950/90 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center justify-between text-xs">
+                            <span class="text-slate-400 font-medium">Turn Order:</span>
+                            <div class="inline-flex gap-1">
+                                <button id="humanFirstBtn" type="button" onclick="setBotPlayerSlot(2)"
+                                        class="px-2.5 py-1 rounded-md font-bold bg-indigo-600/90 text-white transition">
+                                    You Go 1st
+                                </button>
+                                <button id="botFirstBtn" type="button" onclick="setBotPlayerSlot(1)"
+                                        class="px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition">
+                                    Bot Goes 1st
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Player Customization Preview Buttons -->
+                    <div class="grid grid-cols-2 gap-2 mb-3.5">
+                        <button onclick="openPlayerModal(1)" class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition text-left">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span id="lobbyP1Dot" class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color: #2563eb;"></span>
+                                <span id="lobbyP1Name" class="text-xs sm:text-sm font-bold text-white truncate">Player 1</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 font-medium shrink-0 ml-1">Edit</span>
+                        </button>
+                        <button onclick="openPlayerModal(2)" class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition text-left">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span id="lobbyP2Dot" class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color: #e11d48;"></span>
+                                <span id="lobbyP2Name" class="text-xs sm:text-sm font-bold text-white truncate">Player 2</span>
+                            </div>
+                            <span class="text-[10px] text-slate-400 font-medium shrink-0 ml-1">Edit</span>
+                        </button>
+                    </div>
+
+                    <!-- Per-Turn Timer Selector inside Lobby -->
+                    <div class="mb-4">
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Turn Timer (Switches Turn on Timeout)</div>
+                        <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                            <button id="lobbyTime30Btn" type="button" onclick="setTurnDuration(30)"
+                                    class="py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition bg-indigo-600 text-white shadow">
+                                ⏱ 30s / turn
+                            </button>
+                            <button id="lobbyTime60Btn" type="button" onclick="setTurnDuration(60)"
+                                    class="py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white">
+                                ⏱ 1 min / turn
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Start Game Primary CTA -->
+                    <button onclick="startNewPlaySession()"
+                            class="w-full py-3 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm sm:text-base shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition transform active:scale-95">
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z"/>
+                        </svg>
+                        <span>Play Game</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pause Overlay when Turn Clock is Paused -->
+            <div id="pauseOverlay" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-4 text-center">
+                <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-800/90 border border-slate-700 flex items-center justify-center mb-3 text-amber-400">
+                    <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </div>
+                <h3 class="text-lg sm:text-xl font-bold text-white mb-1">Game Paused</h3>
+                <p class="text-xs sm:text-sm text-slate-300 max-w-xs mb-4">The board is hidden while the turn timer is paused.</p>
+                <button onclick="toggleTimerPause()" class="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs sm:text-sm shadow-lg transition transform active:scale-95">
+                    Resume Game
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- BOTTOM CONTROL BAR -->
+    <footer class="w-full max-w-6xl mx-auto px-2 sm:px-5 pt-1 pb-2 sm:pb-3 shrink-0">
+        <div class="bg-slate-900/90 border border-slate-800/90 rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between gap-1.5 sm:gap-2">
+            
+            <!-- Left Controls: Helper Lines Toggle + Rules -->
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <button id="validlineButton" onclick="toggleHelperLines()"
+                        class="fluid-btn inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold border transition-all active:scale-95 bg-slate-800/90 hover:bg-slate-800 text-slate-200 border-slate-700">
+                    <span id="helperDot" class="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-slate-500 transition-colors"></span>
+                    <span>Helpers</span>
+                    <span id="helperCountBadge" class="px-1.5 py-0.5 text-[10px] sm:text-[11px] rounded bg-slate-950 text-slate-300 font-mono">OFF</span>
+                </button>
+
+                <button onclick="openRulesModal()" class="fluid-btn inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-medium bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-800 transition active:scale-95" title="Game Rules">
+                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span class="hidden xs:inline sm:inline">Rules</span>
+                </button>
+            </div>
+
+            <!-- Right Controls: Segmented 30s / 1m Turn Timer + Pause + Play/New Game -->
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <!-- Segmented 30s / 1m Turn Selector -->
+                <div class="inline-flex items-center bg-slate-950 border border-slate-800 rounded-lg sm:rounded-xl p-0.5">
+                    <button id="barTime30Btn" type="button" onclick="setTurnDuration(30)"
+                            class="fluid-btn px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md sm:rounded-lg font-bold transition bg-indigo-600 text-white">
+                        30s
+                    </button>
+                    <button id="barTime60Btn" type="button" onclick="setTurnDuration(60)"
+                            class="fluid-btn px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md sm:rounded-lg font-bold transition text-slate-400 hover:text-white">
+                        1m
+                    </button>
+                </div>
+
+                <!-- Pause / Resume Timer Button -->
+                <button id="pauseTimerBtn" onclick="toggleTimerPause()"
+                        class="hidden fluid-btn items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition active:scale-95"
+                        title="Pause or Resume Turn Timer">
+                    <svg id="pauseIcon" class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                    <span id="pauseBtnText" class="hidden md:inline">Pause</span>
+                </button>
+
+                <!-- Play / New Game Button -->
+                <button id="mainActionBtn" onclick="handleMainActionButton()"
+                        class="fluid-btn inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition active:scale-95">
+                    <svg id="mainActionIcon" class="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"/>
+                    </svg>
+                    <span id="mainActionText">Play</span>
+                </button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- PLAYER CUSTOMIZATION MODAL (Name & Color) -->
+    <div id="playerModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl transform transition-all">
+            <div class="flex items-center justify-between mb-3 sm:mb-4">
+                <h3 id="modalTitle" class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    Customize Player
+                </h3>
+                <button onclick="closePlayerModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <!-- Player Name Input -->
+                <div>
+                    <label for="playerNameInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Player Name</label>
+                    <input id="playerNameInput" type="text" maxlength="18"
+                           class="w-full px-3.5 py-2 sm:py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-white text-sm sm:text-base font-semibold focus:outline-none focus:border-indigo-500 transition"
+                           placeholder="Enter player name...">
+                </div>
+
+                <!-- Preset Color Swatches -->
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Line & Accent Color</label>
+                    <div id="colorSwatchesGrid" class="grid grid-cols-6 gap-2 mb-3">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+
+                    <!-- Custom Hex Color Picker -->
+                    <div class="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2">
+                        <span class="text-xs font-medium text-slate-300">Custom Color Picker</span>
+                        <div class="flex items-center gap-2">
+                            <span id="customColorHexLabel" class="font-mono text-xs text-slate-400">#2563EB</span>
+                            <input id="customColorPicker" type="color" class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg cursor-pointer bg-transparent border-0"
+                                   oninput="selectCustomColor(this.value)">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5 sm:mt-6 flex items-center justify-end gap-2">
+                <button onclick="closePlayerModal()" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-300 hover:bg-slate-800 transition">
+                    Cancel
+                </button>
+                <button onclick="savePlayerCustomization()" class="px-5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg transition">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME OVER / VICTORY MODAL -->
+    <div id="gameOverModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl text-center">
+            <div id="gameOverBadge" class="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center bg-indigo-500/20 border border-indigo-500/40 text-indigo-400">
+                <svg class="w-7 h-7 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                </svg>
+            </div>
+            <h2 id="gameOverTitle" class="text-xl sm:text-2xl font-extrabold text-white mb-1">Game Over</h2>
+            <p id="gameOverSubtitle" class="text-xs sm:text-sm text-slate-300 mb-4 sm:mb-5">All 3 rounds completed!</p>
+
+            <!-- Final Scoreboard -->
+            <div class="grid grid-cols-2 gap-2.5 sm:gap-3 mb-5 sm:mb-6">
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 sm:p-3">
+                    <div class="flex items-center justify-center gap-1.5 mb-1">
+                        <span id="goP1Dot" class="w-2.5 h-2.5 rounded-full"></span>
+                        <span id="goP1Name" class="text-xs font-bold text-slate-300 truncate">Player 1</span>
+                    </div>
+                    <div id="goP1Score" class="text-xl sm:text-2xl font-extrabold text-white">0</div>
+                    <div id="goP1Lines" class="text-[11px] text-slate-400 mt-0.5">0 lines drawn</div>
+                </div>
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 sm:p-3">
+                    <div class="flex items-center justify-center gap-1.5 mb-1">
+                        <span id="goP2Dot" class="w-2.5 h-2.5 rounded-full"></span>
+                        <span id="goP2Name" class="text-xs font-bold text-slate-300 truncate">Player 2</span>
+                    </div>
+                    <div id="goP2Score" class="text-xl sm:text-2xl font-extrabold text-white">0</div>
+                    <div id="goP2Lines" class="text-[11px] text-slate-400 mt-0.5">0 lines drawn</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2 justify-center">
+                <button onclick="closeGameOverModal()" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
+                    Inspect Board
+                </button>
+                <button onclick="startNewPlaySession()" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg transition">
+                    Play Again
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RULES & HOW TO PLAY MODAL -->
+    <div id="rulesModal" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base sm:text-lg font-bold text-white">How to Play line.line</h3>
+                <button onclick="closeRulesModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="space-y-2.5 sm:space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed">
+                <p><strong class="text-white">Objective:</strong> Players take turns connecting pairs of points with straight lines. The player who draws the <span class="text-emerald-400 font-semibold">last valid line</span> of a round scores that round's points <strong>and starts the next round!</strong></p>
+                <div class="bg-slate-950 border border-slate-800 rounded-xl p-3 space-y-1.5">
+                    <div><span class="font-bold text-amber-400">Round 1 (1 pt):</span> Every new line must cross <strong>exactly 1</strong> existing line.</div>
+                    <div><span class="font-bold text-amber-400">Round 2 (2 pts):</span> Every new line must cross <strong>exactly 2</strong> existing lines.</div>
+                    <div><span class="font-bold text-amber-400">Round 3 (3 pts):</span> Every new line must cross <strong>exactly 3</strong> existing lines.</div>
+                </div>
+                <ul class="list-disc list-inside space-y-1 text-slate-400">
+                    <li><strong>Round Winner Keeps Initiative:</strong> If you draw the final valid line in Round 1 or Round 2, you earn the round point(s) and immediately make the opening move of the next round.</li>
+                    <li><strong>Per-Turn Timer:</strong> Choose <strong>30s</strong> or <strong>1m</strong> per turn. If your turn timer hits 0:00, your turn switches to the other player without ending the game!</li>
+                    <li><strong>Customization:</strong> Tap either player's card at the top to change their name and line color at any time.</li>
+                </ul>
+            </div>
+            <div class="mt-4 sm:mt-5 text-right">
+                <button onclick="closeRulesModal()" class="px-5 py-2 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                    Got It
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
-	const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+        // =========================================================================
+        // 1. CONSTANTS & EXACT POINT GENERATION PARAMETERS
+        // =========================================================================
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
 
-if (window.innerHeight > window.innerWidth) {
-    // Portrait A4
-    let targetHeight = Math.min(window.innerHeight * 0.9, 1500);
-    let targetWidth = targetHeight / 1.41;
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-} else {
-    // Landscape A4
-    let targetWidth = Math.min(window.innerWidth * 0.9, 1100);
-    let targetHeight = targetWidth / 1.41;
-    canvas.width = targetWidth;
-    canvas.height = targetHeight;
-}
-console.log(canvas.width, canvas.height);
+        // Exact constants from original point generation rules
+        const minDistance = 100;
+        const pointCount = 12;
 
-//canvas.width = 1100;
-//canvas.height = 800;
-const minDistance = 100;
-const pointCount = 12;
-let points = [];
-let round = 1;
-let existingLines = []; // Only stores initial and player-drawn lines
-let tempPoints = [];    // Temporary array for valid point placement
-let previewLines = [];  // Stores valid but not yet drawn lines
-let tempLine = null; // Stores the temporary preview line
-let errorVar = false;
-let validlineToggle = 2;
-let roundscore = 1;
-let p_one_score = 0;
-let p_two_score = 0;
-let player = 0;
+        // Logical coordinate space (keeps exact A4-like proportion & point density across devices)
+        let logicalWidth = 1100;
+        let logicalHeight = 780; // 1100 / 1.41 ≈ 780
+        let displayScale = 1;
 
-function distance(p1, p2) {
-    return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
-}
+        // Curated modern color palette for player customization
+        const PRESET_COLORS = [
+            "#2563eb", // Royal Blue (Default P1)
+            "#e11d48", // Crimson Rose (Default P2)
+            "#059669", // Emerald Green
+            "#d97706", // Amber Gold
+            "#7c3aed", // Electric Violet
+            "#0891b2", // Cyan Teal
+            "#db2777", // Magenta Pink
+            "#ea580c", // Vivid Orange
+            "#4f46e5", // Indigo
+            "#16a34a", // Kelly Green
+            "#9333ea", // Purple
+            "#dc2626"  // Bright Red
+        ];
 
-function angleBetweenVectors(A, B, C) {
-    let ABx = B.x - A.x, ABy = B.y - A.y;
-    let BCx = C.x - B.x, BCy = C.y - B.y;
-    let dotProduct = ABx * BCx + ABy * BCy;
-    let magAB = Math.sqrt(ABx * ABx + ABy * ABy);
-    let magBC = Math.sqrt(BCx * BCx + BCy * BCy);
-    if (magAB === 0 || magBC === 0) return 0;
-    return Math.acos(dotProduct / (magAB * magBC)) * (180 / Math.PI);
-}
-
-function isValidPoint(newPoint) {
-    for (let p of tempPoints) {
-        if (distance(newPoint, p) < minDistance) return false;
-    }
-    for (let i = 0; i < tempPoints.length - 1; i++) {
-        for (let j = i + 1; j < tempPoints.length; j++) {
-            let A = tempPoints[i], B = tempPoints[j], C = newPoint;
-            let angle = angleBetweenVectors(A, B, C);
-			
-            if (angle >= 160 || angle <=8) {
-				return false;
-			}
-        }
-    }
-    return true;
-}
-
-function generatePoints() {
-    tempPoints = [];
-    let attempts = 0;
-    while (tempPoints.length < pointCount) {
-        let newPoint = {
-            x: Math.floor(Math.random() * (canvas.width - 40)) + 20,
-            y: Math.floor(Math.random() * (canvas.height - 40)) + 20
+        // Player state (customizable name, color, score)
+        const players = {
+            1: {
+                name: "Player 1",
+                color: "#2563eb",
+                score: 0
+            },
+            2: {
+                name: "Player 2",
+                color: "#e11d48",
+                score: 0
+            }
         };
-        if (isValidPoint(newPoint)) tempPoints.push(newPoint);
-        attempts++;
-        if (attempts > 1000) {
-            console.log("Resetting point generation.");
-            tempPoints = [];
-            attempts = 0;
+
+        // Game lifecycle state: 'WAITING' (Lobby before pressing Play), 'PLAYING', 'GAMEOVER'
+        let gameState = "WAITING";
+
+        // Game mode state: 'PVP' (Player vs Player) or 'PVB' (Player vs Bot)
+        let gameMode = "PVP";
+        let botPlayerId = 2; // Which player slot (1 or 2) is controlled by the AI Bot in PVB mode
+        let savedHumanNames = { 1: "Player 1", 2: "Player 2" };
+        let isBotThinking = false;
+        let botAnimState = null; // { p1, p2, progress }
+        let botTurnTimeoutId = null;
+
+        // Precomputed 66-segment topology & Zobrist hashing tables for fast AI search
+        let allSegments = [];        // Array of 66 { id, i, j, p1, p2 }
+        let segCrossMatrix = [];     // segCrossMatrix[s1] = BigInt bitmask of segments strictly crossing s1
+        let segCrossList = [];       // segCrossList[s1] = Array of segment indices strictly crossing s1
+        let zobristSegKeys = [];     // BigInt random keys per segment
+        let zobristRoundKeys = [];   // BigInt random keys per round
+        let zobristTurnKey = 0n;
+
+        // Live Win Probability Percentage for Player 1 (0..100)
+        let p1WinProbability = 50;
+
+        // Board & Round state variables
+        let points = [];
+        let tempPoints = [];
+        let existingLines = []; // Array of { p1, p2, owner: 0 | 1 | 2 }
+        let previewLines = [];  // Cached valid lines for the current board state
+        let round = 1;
+        let currentTurn = 1;    // 1 for Player 1, 2 for Player 2
+        let showHelperLines = false;
+
+        // Interactive pointer/touch selection state
+        let firstSelectedPoint = null;
+        let hoveredPoint = null;
+        let pointerPos = { x: 0, y: 0 };
+        let isDragging = false;
+
+        // Per-Turn Timer State (30s or 60s per turn; switches turn on timeout)
+        let turnDurationSeconds = 30;
+        let turnTimeRemainingMs = 30 * 1000;
+        let timerPaused = false;
+        let lastFrameTime = performance.now();
+
+        // Modal state
+        let editingPlayerId = 1;
+        let selectedModalColor = "#2563eb";
+        let toastTimeout = null;
+
+        // =========================================================================
+        // 2. EXACT MATHEMATICAL & POINT GENERATION FUNCTIONS
+        // =========================================================================
+
+        function distance(p1, p2) {
+            return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
         }
-        if (tempPoints.length === pointCount) {
-            points = [...tempPoints];
-            drawPoints();
-			connectClosestPoints();
-            countValidOneCrossLines();
-			if (!countValidOneCrossLines){
-				location.reload();
-			}
-            break;
+
+        function angleBetweenVectors(A, B, C) {
+            let ABx = B.x - A.x, ABy = B.y - A.y;
+            let BCx = C.x - B.x, BCy = C.y - B.y;
+            let dotProduct = ABx * BCx + ABy * BCy;
+            let magAB = Math.sqrt(ABx * ABx + ABy * ABy);
+            let magBC = Math.sqrt(BCx * BCx + BCy * BCy);
+            if (magAB === 0 || magBC === 0) return 0;
+            let cosTheta = Math.max(-1, Math.min(1, dotProduct / (magAB * magBC)));
+            return Math.acos(cosTheta) * (180 / Math.PI);
         }
-    }
-}
 
-function drawPoints() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#5e81ac";
-    ctx.font = "10px Arial";
-    points.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, canvas.width*0.008, 0, 2 * Math.PI);
-        ctx.fill();
-		/*draw text
-        ctx.fillStyle = "blue";
-        ctx.fillText(`(${p.x}, ${p.y})`, p.x + 8, p.y - 8);
-        ctx.fillStyle = "black";
-		*/
-    });
-}
+        function isValidPoint(newPoint) {
+            for (let p of tempPoints) {
+                if (distance(newPoint, p) < minDistance) return false;
+            }
+            for (let i = 0; i < tempPoints.length - 1; i++) {
+                for (let j = i + 1; j < tempPoints.length; j++) {
+                    let A = tempPoints[i], B = tempPoints[j], C = newPoint;
+                    let angle = angleBetweenVectors(A, B, C);
+                    if (angle >= 160 || angle <= 8) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
 
-function connectClosestPoints() {
-    if (points.length < 2) return;
-    points.sort((a, b) => distanceFromCenter(a) - distanceFromCenter(b));
-    let point1 = points[0];
-    let point2 = points[1];
-    ctx.beginPath();
-    ctx.moveTo(point1.x, point1.y);
-    ctx.lineTo(point2.x, point2.y);
-    ctx.strokeStyle = "#5e81ac";
-    ctx.lineWidth = canvas.width*0.002;
-    ctx.stroke();
-    existingLines.push([point1, point2]);
-}
+        function distanceFromCenter(p) {
+            let centerX = logicalWidth / 2;
+            let centerY = logicalHeight / 2;
+            return Math.sqrt((p.x - centerX) ** 2 + (p.y - centerY) ** 2);
+        }
 
-function distanceFromCenter(p) {
-    let centerX = canvas.width / 2;
-    let centerY = canvas.height / 2;
-    return Math.sqrt((p.x - centerX) ** 2 + (p.y - centerY) ** 2);
-}
+        function doLinesIntersect(A, B, C, D) {
+            function ccw(P, Q, R) {
+                return (R.y - P.y) * (Q.x - P.x) > (Q.y - P.y) * (R.x - P.x);
+            }
+            return (ccw(A, C, D) !== ccw(B, C, D)) && (ccw(A, B, C) !== ccw(A, B, D));
+        }
 
-function drawGameInfo(validLines) {
-    // Define text position
-    let textX = 5, textY = canvas.height-5;
+        /**
+         * Generates 12 valid points following the exact original rules,
+         * connects the 2 points closest to the center, and ensures at least 1 valid move exists.
+         */
+        function generatePoints() {
+            const isPortrait = window.innerHeight > window.innerWidth;
+            logicalWidth = isPortrait ? 780 : 1100;
+            logicalHeight = isPortrait ? 1100 : 780;
 
-    // Set text properties
-    ctx.fillStyle = "#2e3440";
-    ctx.font = "12px Arial";
-	if (validLines > 0){
-    ctx.fillText(`${validLines} valid line(s) in ROUND ${round}`, textX, textY);
-	} else if (round === 3){
-		roundscore=3;
-		if(p_one_score > p_two_score){
-		ctx.fillText(`Game Over, Player 1 wins with ${p_one_score} points`, textX, textY);
-		} else if (p_two_score > p_one_score){
-			ctx.fillText(`Game Over, Player 2 wins with ${p_two_score} points`, textX, textY);
-		}else ctx.fillText(`The game ends in a draw`, textX, textY);
-	}
-	ctx.fillText(`Player 1(${p_one_score})`, canvas.width-65, textY-15);
-	ctx.fillText(`Player 2(${p_two_score})`, canvas.width-65, textY);
-	activePlayer();
-	ctx.textAlign = "center";
-	ctx.font = "18px Arial";
-	if (activePlayer() === 1){
-	ctx.fillText(`Player 2's turn`, canvas.width/2, textY);
-	}else ctx.fillText(`Player 1's turn`, canvas.width/2, textY);
-	ctx.font = "12px Arial";
-	ctx.textAlign = "left";
-}
+            let validBoardGenerated = false;
+            let safetyCounter = 0;
 
-function activePlayer(){
-	if (roundscore === 1 || roundscore === 3){
-	if (existingLines.length % 2 === 0){
-		player = 1;
-		//document.body.style.backgroundColor = "#b3c99d";
-	}else {
-		player = 2;
-		//document.body.style.backgroundColor = "#5a6e47";
-		}
-	}
-	if (roundscore === 2){
-	if (existingLines.length % 2 === 0){
-		player = 2;
-		//document.body.style.backgroundColor = "#5a6e47";
-	}else {
-		player = 1;
-		//document.body.style.backgroundColor = "#b3c99d";
-		}
-	}	
-	return player;
-}
+            while (!validBoardGenerated && safetyCounter < 50) {
+                safetyCounter++;
+                tempPoints = [];
+                let attempts = 0;
 
-function calcplayerScore(){
-console.log(`Roundscore (before increase) ${roundscore}`);
-console.log(`Active Player ${activePlayer()}`);
-console.log(`Existing lines ${existingLines.length}`);
-	if (activePlayer() === 1){
-		p_one_score+=roundscore;
-	}
-	if (activePlayer() === 2){
-		p_two_score+=roundscore;
-	}
-}
+                while (tempPoints.length < pointCount) {
+                    let newPoint = {
+                        x: Math.floor(Math.random() * (logicalWidth - 40)) + 20,
+                        y: Math.floor(Math.random() * (logicalHeight - 40)) + 20
+                    };
+                    if (isValidPoint(newPoint)) {
+                        tempPoints.push(newPoint);
+                    }
+                    attempts++;
+                    if (attempts > 1000) {
+                        tempPoints = [];
+                        attempts = 0;
+                    }
+                }
 
+                points = [...tempPoints];
+                // Connect the 2 points closest to the center as the initial line
+                points.sort((a, b) => distanceFromCenter(a) - distanceFromCenter(b));
+                points.forEach((p, idx) => p.id = idx + 1);
 
-function countValidOneCrossLines() {
-	previewLines = [];  // Stores valid but not yet drawn lines
-    let validLines = 0;
-    let foundValidLine = false;
-	
+                existingLines = [];
+                if (points.length >= 2) {
+                    existingLines.push({
+                        p1: points[0],
+                        p2: points[1],
+                        owner: 0 // 0 = initial neutral center line (counted in all Bot & WinProb bitmasks)
+                    });
+                }
 
-    for (let i = 0; i < points.length; i++) {
-        for (let j = i + 1; j < points.length; j++) {
-            let newLine = [points[i], points[j]];
-            let intersectionCount = 0;
-
-            let isAlreadyDrawn = existingLines.some(line =>
-                (line[0] === newLine[0] && line[1] === newLine[1]) ||
-                (line[0] === newLine[1] && line[1] === newLine[0])
-            );
-
-            if (isAlreadyDrawn) continue; // Skip already drawn lines
-
-            // Check if new line crosses exactly 'round' number of existing lines
-            for (let line of existingLines) {
-                if (line.includes(newLine[0]) || line.includes(newLine[1])) continue;
-                if (doLinesIntersect(newLine[0], newLine[1], line[0], line[1])) {
-                    intersectionCount++;		
+                round = 1;
+                if (recalculateValidLines()) {
+                    validBoardGenerated = true;
                 }
             }
 
-            if (intersectionCount === round) {
-                validLines++;
-                foundValidLine = true; // Mark that a valid line was found
-				previewLines.push(newLine);
-
-                //console.log(`Valid line: (${newLine[0].x}, ${newLine[0].y}) -> (${newLine[1].x}, ${newLine[1].y})`);
-                //console.log(`Valid line count: (${validLines})`);
-
-
-                if (validlineToggle % 2 > 0){
-				// Draw the valid line in thin grey
-                ctx.strokeStyle = "#d08770";
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(newLine[0].x, newLine[0].y);
-                ctx.lineTo(newLine[1].x, newLine[1].y);
-                ctx.stroke();
-				}
-				
-            }
+            // Build the 66-segment topology & Zobrist tables for instantaneous AI lookahead
+            buildSegmentTopology();
+            updateWinProbability();
         }
-    }
 
-    // Update the displayed game info
-    drawGameInfo(validLines);
+        /**
+         * Precomputes all 66 possible segments between the 12 points and their mutual
+         * strict geometric intersections so the AI Bot can simulate moves in O(1) bitmask operations.
+         */
+        function buildSegmentTopology() {
+            allSegments = [];
+            let idx = 0;
+            for (let i = 0; i < points.length; i++) {
+                for (let j = i + 1; j < points.length; j++) {
+                    allSegments.push({
+                        id: idx++,
+                        i,
+                        j,
+                        p1: points[i],
+                        p2: points[j]
+                    });
+                }
+            }
 
-    return foundValidLine;
-}
+            const S = allSegments.length; // 66
+            segCrossMatrix = new Array(S).fill(0n);
+            segCrossList = Array.from({ length: S }, () => []);
 
-document.getElementById("validlineButton").addEventListener("click", function() {
-    validlineToggle++;
-});
+            for (let a = 0; a < S; a++) {
+                const segA = allSegments[a];
+                for (let b = a + 1; b < S; b++) {
+                    const segB = allSegments[b];
+                    if (segA.i === segB.i || segA.i === segB.j || segA.j === segB.i || segA.j === segB.j) {
+                        continue;
+                    }
+                    if (doLinesIntersect(segA.p1, segA.p2, segB.p1, segB.p2)) {
+                        segCrossMatrix[a] |= (1n << BigInt(b));
+                        segCrossMatrix[b] |= (1n << BigInt(a));
+                        segCrossList[a].push(b);
+                        segCrossList[b].push(a);
+                    }
+                }
+            }
 
+            function rand64() {
+                const hi = BigInt(Math.floor(Math.random() * 0x100000000));
+                const lo = BigInt(Math.floor(Math.random() * 0x100000000));
+                return (hi << 32n) ^ lo;
+            }
+            zobristSegKeys = Array.from({ length: S }, () => rand64());
+            zobristRoundKeys = [0n, rand64(), rand64(), rand64(), rand64()];
+            zobristTurnKey = rand64();
+        }
 
+        function findSegmentId(p1, p2) {
+            for (let s = 0; s < allSegments.length; s++) {
+                const seg = allSegments[s];
+                if ((seg.p1 === p1 && seg.p2 === p2) || (seg.p1 === p2 && seg.p2 === p1)) {
+                    return s;
+                }
+            }
+            return -1;
+        }
 
-function clearValidLines() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawPoints(); // Redraw the points
-    drawExistingLines(); // Redraw only permanent (player & initial) lines
-	//previewLines = [];
-	countValidOneCrossLines();
-}
+        /**
+         * Encodes the current board's `existingLines` (including the pre-existing neutral line at index 0)
+         * into a 66-bit BigInt mask and Zobrist hash.
+         */
+        function getCurrentBoardMaskAndHash() {
+            let mask = 0n;
+            let hash = zobristRoundKeys[round] || 0n;
+            for (const line of existingLines) {
+                const sid = findSegmentId(line.p1, line.p2);
+                if (sid >= 0) {
+                    mask |= (1n << BigInt(sid));
+                    hash ^= zobristSegKeys[sid];
+                }
+            }
+            if (currentTurn === 2) hash ^= zobristTurnKey;
+            return { mask, hash };
+        }
 
-function drawExistingLines() {
-    ctx.strokeStyle = "#5e81ac";
+        // =========================================================================
+        // 3. EFFICIENT CACHED INTERSECTION & VALID MOVE CALCULATION
+        // =========================================================================
 
-    ctx.lineWidth = 2;
-    for (let line of existingLines) {
-        ctx.beginPath();
-        ctx.moveTo(line[0].x, line[0].y);
-        ctx.lineTo(line[1].x, line[1].y);
-        ctx.stroke();
-    }
-}
-
-
-function doLinesIntersect(A, B, C, D) {
-    function ccw(P, Q, R) {
-        return (R.y - P.y) * (Q.x - P.x) > (Q.y - P.y) * (R.x - P.x);
-    }
-    return (ccw(A, C, D) !== ccw(B, C, D)) && (ccw(A, B, C) !== ccw(A, B, D));
-}
-
-// Player interaction: Click two points to draw a new line
-let selectedPoints = [];
-
-function drawErrorInfo() {
-    // Define text position
-	ctx.textAlign = "center";
-	let textX = canvas.width/2;
-	let textY = canvas.height/2;
-	ctx.fillStyle = "#eceff4";
-	ctx.rect(textX - 200, textY - 30, 400, 50);
-	ctx.fill();
-
-    // Set text properties
-    ctx.fillStyle = "#2e3440";
-    ctx.font = "20px Arial";
-    ctx.fillText(`ERROR, you have to cross exactly ${round} line(s)`, textX, textY);
-	ctx.textAlign = "left";
-	errorVar = true;
-}
-
-
-let firstSelectedPoint = null;
-let clickedPoint = null;
-let mouseX = 0, mouseY = 0;
-
-// Click event for selecting points and drawing final lines
-canvas.addEventListener("click", function (event) {
-    let clickX = event.offsetX;
-    let clickY = event.offsetY;
-
-    clickedPoint = points.find(p => distance(p, { x: clickX, y: clickY }) < 45);
-    if (clickedPoint) {
-        if (!firstSelectedPoint) {
-            firstSelectedPoint = clickedPoint; // Store first point
-        } else {
-            let p1 = firstSelectedPoint;
-            let p2 = clickedPoint;
-
-            let isAlreadyDrawn = existingLines.some(line =>
-                (line[0] === p1 && line[1] === p2) || (line[0] === p2 && line[1] === p1)
+        function isLineAlreadyDrawn(p1, p2) {
+            return existingLines.some(line =>
+                (line.p1 === p1 && line.p2 === p2) ||
+                (line.p1 === p2 && line.p2 === p1)
             );
+        }
 
-            let isValidLine = previewLines.some(line =>
-                (line[0] === p1 && line[1] === p2) || (line[0] === p2 && line[1] === p1)
-            );
+        function countIntersectionsForCandidate(p1, p2) {
+            let intersectionCount = 0;
+            for (let line of existingLines) {
+                if (line.p1 === p1 || line.p2 === p1 || line.p1 === p2 || line.p2 === p2) continue;
+                if (doLinesIntersect(p1, p2, line.p1, line.p2)) {
+                    intersectionCount++;
+                }
+            }
+            return intersectionCount;
+        }
 
-            if (!isAlreadyDrawn && isValidLine) {
-                existingLines.push([p1, p2]);
-                ctx.strokeStyle = "#2e3440";
+        /**
+         * Recalculates previewLines only when a move is committed or round changes.
+         */
+        function recalculateValidLines() {
+            previewLines = [];
+            for (let i = 0; i < points.length; i++) {
+                for (let j = i + 1; j < points.length; j++) {
+                    let p1 = points[i];
+                    let p2 = points[j];
+
+                    if (isLineAlreadyDrawn(p1, p2)) continue;
+
+                    let crossings = countIntersectionsForCandidate(p1, p2);
+                    if (crossings === round) {
+                        previewLines.push([p1, p2]);
+                    }
+                }
+            }
+            updateHUD();
+            return previewLines.length > 0;
+        }
+
+        // =========================================================================
+        // 4. RESPONSIVE HIGH-DPI CANVAS SIZING & RENDERING
+        // =========================================================================
+
+        function resizeCanvasToContainer() {
+            const container = document.getElementById("canvasContainer");
+            const wrapper = document.getElementById("boardWrapper");
+            if (!container || !wrapper) return;
+
+            const availW = Math.max(200, container.clientWidth - 12);
+            const availH = Math.max(200, container.clientHeight - 6);
+
+            const wantPortrait = availH > availW;
+            const isCurrentlyPortrait = logicalHeight > logicalWidth;
+
+            if (wantPortrait !== isCurrentlyPortrait) {
+                if (gameState === "WAITING") {
+                    logicalWidth = wantPortrait ? 780 : 1100;
+                    logicalHeight = wantPortrait ? 1100 : 780;
+                } else if (existingLines.length <= 1) {
+                    const oldW = logicalWidth;
+                    logicalWidth = logicalHeight;
+                    logicalHeight = oldW;
+                    points.forEach(p => {
+                        const tmp = p.x;
+                        p.x = p.y;
+                        p.y = tmp;
+                    });
+                }
+            }
+
+            const scaleX = availW / logicalWidth;
+            const scaleY = availH / logicalHeight;
+            displayScale = Math.max(0.18, Math.min(scaleX, scaleY));
+
+            const cssWidth = Math.floor(logicalWidth * displayScale);
+            const cssHeight = Math.floor(logicalHeight * displayScale);
+
+            const dpr = window.devicePixelRatio || 1;
+            wrapper.style.width = `${cssWidth}px`;
+            wrapper.style.height = `${cssHeight}px`;
+
+            canvas.style.width = `${cssWidth}px`;
+            canvas.style.height = `${cssHeight}px`;
+            canvas.width = Math.floor(cssWidth * dpr);
+            canvas.height = Math.floor(cssHeight * dpr);
+
+            ctx.setTransform(dpr * displayScale, 0, 0, dpr * displayScale, 0, 0);
+            renderBoard();
+        }
+
+        function renderBoard() {
+            ctx.clearRect(0, 0, logicalWidth, logicalHeight);
+
+            if (gameState === "WAITING") {
+                const cx = logicalWidth / 2;
+                const cy = logicalHeight / 2;
+                const r = Math.min(logicalWidth, logicalHeight) * 0.28;
+                ctx.save();
+                ctx.strokeStyle = "#cbd5e1";
                 ctx.lineWidth = 2;
+                ctx.setLineDash([8, 8]);
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+                return;
+            }
+
+            // 1. Draw helper valid lines (if toggled on)
+            if (showHelperLines && gameState === "PLAYING") {
+                ctx.save();
+                ctx.strokeStyle = "#f59e0b";
+                ctx.globalAlpha = 0.38;
+                ctx.lineWidth = 2.4;
+                ctx.setLineDash([7, 7]);
+                for (let line of previewLines) {
+                    ctx.beginPath();
+                    ctx.moveTo(line[0].x, line[0].y);
+                    ctx.lineTo(line[1].x, line[1].y);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // 2. Draw all existing permanent lines (colored by owner)
+            for (let i = 0; i < existingLines.length; i++) {
+                const line = existingLines[i];
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(line.p1.x, line.p1.y);
+                ctx.lineTo(line.p2.x, line.p2.y);
+
+                if (line.owner === 0) {
+                    // Initial neutral center line
+                    ctx.strokeStyle = "#5e81ac";
+                    ctx.lineWidth = 3.8;
+                } else {
+                    ctx.strokeStyle = players[line.owner].color;
+                    ctx.lineWidth = 4.5;
+                }
+                ctx.lineCap = "round";
+                ctx.stroke();
+
+                // Subtle highlight on the most recently drawn player line
+                if (i === existingLines.length - 1 && line.owner !== 0) {
+                    ctx.strokeStyle = players[line.owner].color;
+                    ctx.globalAlpha = 0.22;
+                    ctx.lineWidth = 12;
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+
+            // 3. Draw active interactive preview line when a first point is selected
+            if (firstSelectedPoint && gameState === "PLAYING") {
+                const targetX = hoveredPoint && hoveredPoint !== firstSelectedPoint ? hoveredPoint.x : pointerPos.x;
+                const targetY = hoveredPoint && hoveredPoint !== firstSelectedPoint ? hoveredPoint.y : pointerPos.y;
+
+                const activeColor = players[currentTurn].color;
+                let isCandidateValid = false;
+                let candidateCrossings = null;
+
+                if (hoveredPoint && hoveredPoint !== firstSelectedPoint && !isLineAlreadyDrawn(firstSelectedPoint, hoveredPoint)) {
+                    candidateCrossings = countIntersectionsForCandidate(firstSelectedPoint, hoveredPoint);
+                    isCandidateValid = (candidateCrossings === round);
+                }
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(firstSelectedPoint.x, firstSelectedPoint.y);
+                ctx.lineTo(targetX, targetY);
+
+                if (hoveredPoint && hoveredPoint !== firstSelectedPoint) {
+                    ctx.strokeStyle = isCandidateValid ? activeColor : "#ef4444";
+                    ctx.lineWidth = 4;
+                    ctx.setLineDash(isCandidateValid ? [] : [6, 6]);
+                } else {
+                    ctx.strokeStyle = activeColor;
+                    ctx.globalAlpha = 0.78;
+                    ctx.lineWidth = 3;
+                    ctx.setLineDash([8, 6]);
+                }
+                ctx.lineCap = "round";
+                ctx.stroke();
+
+                // Draw live crossing count pill at midpoint when hovering a target point
+                if (candidateCrossings !== null) {
+                    const midX = (firstSelectedPoint.x + targetX) / 2;
+                    const midY = (firstSelectedPoint.y + targetY) / 2;
+                    const badgeText = `${candidateCrossings}/${round}×`;
+
+                    ctx.setLineDash([]);
+                    ctx.globalAlpha = 1;
+                    ctx.font = "bold 15px Inter, sans-serif";
+                    const textWidth = ctx.measureText(badgeText).width;
+                    const padX = 9;
+                    const pillW = textWidth + padX * 2;
+                    const pillH = 26;
+
+                    ctx.fillStyle = isCandidateValid ? "#10b981" : "#ef4444";
+                    ctx.beginPath();
+                    ctx.roundRect(midX - pillW / 2, midY - pillH / 2, pillW, pillH, 8);
+                    ctx.fill();
+
+                    ctx.fillStyle = "#ffffff";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    ctx.fillText(badgeText, midX, midY + 0.5);
+                }
+                ctx.restore();
+            }
+
+            // 3b. Draw AI Bot animated move line if the Bot is currently executing its move
+            if (botAnimState && gameState === "PLAYING") {
+                const { p1, p2, progress } = botAnimState;
+                const curX = p1.x + (p2.x - p1.x) * progress;
+                const curY = p1.y + (p2.y - p1.y) * progress;
+                const botColor = players[currentTurn].color;
+
+                ctx.save();
                 ctx.beginPath();
                 ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
+                ctx.lineTo(curX, curY);
+                ctx.strokeStyle = botColor;
+                ctx.lineWidth = 5;
+                ctx.lineCap = "round";
                 ctx.stroke();
 
-                
-
-                if (!countValidOneCrossLines() && round < 3 && existingLines.length > 1) {
-                    round++;
-					calcplayerScore();
-					roundscore++;
-                    countValidOneCrossLines();
-					console.log("exec test");
-                }
-				if (!countValidOneCrossLines() && round === 3 && existingLines.length > 1) {
-					calcplayerScore();
-					console.log("exec test 2");
-				}
-                console.log(`Round: (${round})`);
-				clearValidLines(); // Clear only grey preview lines
-            } else {
-                drawErrorInfo();
+                ctx.strokeStyle = botColor;
+                ctx.globalAlpha = 0.28;
+                ctx.lineWidth = 14;
+                ctx.stroke();
+                ctx.restore();
             }
 
-            firstSelectedPoint = null; // Reset selection
+            // 4. Draw the 12 Points (scaled slightly up when displayScale is small on mobile)
+            const mobileBoost = displayScale < 0.45 ? 1.28 : 1;
+            const baseRadius = 11 * mobileBoost;
+
+            for (let p of points) {
+                const isBotEndpoint = botAnimState && (p === botAnimState.p1 || (botAnimState.progress > 0.85 && p === botAnimState.p2));
+                const isSelected = (p === firstSelectedPoint) || isBotEndpoint;
+                const isHovered = (p === hoveredPoint);
+
+                ctx.save();
+
+                if (isSelected || isHovered) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, (isSelected ? 22 : 18) * mobileBoost, 0, 2 * Math.PI);
+                    ctx.fillStyle = players[currentTurn].color;
+                    ctx.globalAlpha = isSelected ? 0.28 : 0.18;
+                    ctx.fill();
+                }
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, isSelected ? baseRadius * 1.2 : baseRadius, 0, 2 * Math.PI);
+                ctx.fillStyle = isSelected ? players[currentTurn].color : "#1e293b";
+                ctx.fill();
+
+                ctx.lineWidth = 2.6 * mobileBoost;
+                ctx.strokeStyle = "#ffffff";
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 3.6 * mobileBoost, 0, 2 * Math.PI);
+                ctx.fillStyle = "#ffffff";
+                ctx.fill();
+
+                ctx.restore();
+            }
         }
-    }
-});
 
-// Mousemove event to update the preview line
-canvas.addEventListener("mousemove", function (event) {
-    mouseX = event.offsetX;
-    mouseY = event.offsetY;
-	if (errorVar){
-		if (!clickedPoint){
-			drawCanvas();
-			errorVar = false;
-		}
-	}else {
-		drawCanvas();
-		errorVar = false;
-	}
-});
+        // =========================================================================
+        // 5. GAMEPLAY MOVE VALIDATION, ROUND PROGRESSION & SCORING
+        // =========================================================================
 
-// Redraw everything, including the temporary preview line
-function drawCanvas() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawPoints();
-    drawExistingLines();
-    countValidOneCrossLines();
+        function isBotTurn() {
+            return gameState === "PLAYING" && gameMode === "PVB" && currentTurn === botPlayerId;
+        }
 
-    // If a first point is selected, draw a temporary line to the cursor
-    if (firstSelectedPoint) {
-        ctx.strokeStyle = "#d08770";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(firstSelectedPoint.x, firstSelectedPoint.y);
-        ctx.lineTo(mouseX, mouseY);
-        ctx.stroke();
-    }
-}
+        function switchTurnAndResetClock() {
+            currentTurn = currentTurn === 1 ? 2 : 1;
+            turnTimeRemainingMs = turnDurationSeconds * 1000;
+            lastFrameTime = performance.now();
+            firstSelectedPoint = null;
+            hoveredPoint = null;
+            isDragging = false;
+            botAnimState = null;
+            isBotThinking = false;
+            updateWinProbability();
+            updateTimerDisplayDOM();
+            updateHUD();
+            renderBoard();
+            triggerBotTurnIfNeeded();
+        }
 
+        /**
+         * Preserves `currentTurn` for the player who clinched the previous round,
+         * resets their per-turn countdown clock for the new round, updates live Win Probability,
+         * and triggers the Bot if the round-winner is the Bot.
+         */
+        function keepTurnForRoundWinnerAndResetClock() {
+            turnTimeRemainingMs = turnDurationSeconds * 1000;
+            lastFrameTime = performance.now();
+            firstSelectedPoint = null;
+            hoveredPoint = null;
+            isDragging = false;
+            botAnimState = null;
+            isBotThinking = false;
+            updateWinProbability();
+            updateTimerDisplayDOM();
+            updateHUD();
+            renderBoard();
+            triggerBotTurnIfNeeded();
+        }
 
-window.onload = generatePoints;
+        function attemptConnectPoints(p1, p2, isFromBot = false) {
+            if (gameState !== "PLAYING" || timerPaused || !p1 || !p2 || p1 === p2) return;
+            if (!isFromBot && isBotTurn()) return;
 
-	</script>
+            if (isLineAlreadyDrawn(p1, p2)) {
+                showToast("That line is already drawn!", "error");
+                return;
+            }
+
+            const isValidLine = previewLines.some(line =>
+                (line[0] === p1 && line[1] === p2) || (line[0] === p2 && line[1] === p1)
+            );
+
+            if (!isValidLine) {
+                const actualCrossings = countIntersectionsForCandidate(p1, p2);
+                showToast(`Invalid: crossed ${actualCrossings} line${actualCrossings === 1 ? '' : 's'} (Round ${round} requires ${round})`, "error");
+                return;
+            }
+
+            // Valid line! Commit to board with current player's ownership
+            const mover = currentTurn;
+            existingLines.push({
+                p1,
+                p2,
+                owner: mover
+            });
+
+            // Recalculate remaining valid moves in the current round
+            const hasMoreMovesInRound = recalculateValidLines();
+
+            if (!hasMoreMovesInRound) {
+                // RULE: Player who draws the last valid line of Round R gets +R points AND starts Round R+1!
+                players[mover].score += round;
+                const scoredRound = round;
+
+                // Advance round until we find one with valid moves or finish Round 3
+                let foundNextRoundMoves = false;
+                while (round < 3) {
+                    round++;
+                    if (recalculateValidLines()) {
+                        foundNextRoundMoves = true;
+                        break;
+                    }
+                }
+
+                if (foundNextRoundMoves) {
+                    showToast(`${players[mover].name} clinched Round ${scoredRound} (+${scoredRound} pt${scoredRound > 1 ? 's' : ''}) & starts Round ${round}!`, "success");
+                    // Keep `currentTurn = mover` so the round winner starts the next round!
+                    keepTurnForRoundWinnerAndResetClock();
+                } else {
+                    // Game Over!
+                    endGame();
+                }
+            } else {
+                // Normal turn switch + reset per-turn timer for the next player
+                switchTurnAndResetClock();
+            }
+        }
+
+        // =========================================================================
+        // 5B. OPTIMAL AI BOT ENGINE & LIVE WIN PROBABILITY CALCULATOR
+        // =========================================================================
+
+        function setGameMode(mode) {
+            gameMode = mode;
+            const isPvP = (mode === "PVP");
+            const activeClass = "bg-indigo-600 text-white shadow";
+            const inactiveClass = "text-slate-400 hover:text-white";
+
+            document.getElementById("modePvPBtn").className = `py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${isPvP ? activeClass : inactiveClass}`;
+            document.getElementById("modePvBBtn").className = `py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${!isPvP ? activeClass : inactiveClass}`;
+
+            const botOrderRow = document.getElementById("botOrderRow");
+            if (isPvP) {
+                botOrderRow.classList.add("hidden");
+                if (players[1].name === "AI Bot") players[1].name = savedHumanNames[1] || "Player 1";
+                if (players[2].name === "AI Bot") players[2].name = savedHumanNames[2] || "Player 2";
+            } else {
+                botOrderRow.classList.remove("hidden");
+                applyBotSlotNaming();
+            }
+            updateHUD();
+        }
+
+        function setBotPlayerSlot(slot) {
+            if (players[1].name !== "AI Bot") savedHumanNames[1] = players[1].name;
+            if (players[2].name !== "AI Bot") savedHumanNames[2] = players[2].name;
+
+            botPlayerId = slot;
+            const humanSlot = slot === 1 ? 2 : 1;
+
+            document.getElementById("humanFirstBtn").className = slot === 2
+                ? "px-2.5 py-1 rounded-md font-bold bg-indigo-600/90 text-white transition"
+                : "px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition";
+            document.getElementById("botFirstBtn").className = slot === 1
+                ? "px-2.5 py-1 rounded-md font-bold bg-indigo-600/90 text-white transition"
+                : "px-2.5 py-1 rounded-md font-semibold text-slate-400 hover:text-white transition";
+
+            players[humanSlot].name = savedHumanNames[humanSlot] || `Player ${humanSlot}`;
+            applyBotSlotNaming();
+            updateHUD();
+        }
+
+        function applyBotSlotNaming() {
+            if (gameMode === "PVB") {
+                if (players[botPlayerId].name === `Player ${botPlayerId}`) {
+                    players[botPlayerId].name = "AI Bot";
+                }
+            }
+        }
+
+        function triggerBotTurnIfNeeded() {
+            if (botTurnTimeoutId) {
+                clearTimeout(botTurnTimeoutId);
+                botTurnTimeoutId = null;
+            }
+            if (!isBotTurn() || timerPaused) return;
+
+            isBotThinking = true;
+            updateHUD();
+
+            botTurnTimeoutId = setTimeout(() => {
+                if (!isBotTurn() || timerPaused) return;
+
+                const bestMove = findBestBotMove();
+                if (!bestMove) return;
+
+                const animDuration = 450;
+                const startTime = performance.now();
+                botAnimState = {
+                    p1: bestMove[0],
+                    p2: bestMove[1],
+                    progress: 0
+                };
+
+                function stepBotAnimation(now) {
+                    if (gameState !== "PLAYING" || !isBotTurn()) {
+                        botAnimState = null;
+                        renderBoard();
+                        return;
+                    }
+                    if (timerPaused) {
+                        requestAnimationFrame(stepBotAnimation);
+                        return;
+                    }
+                    const elapsed = now - startTime;
+                    const t = Math.min(1, elapsed / animDuration);
+                    botAnimState.progress = 1 - Math.pow(1 - t, 3);
+                    renderBoard();
+
+                    if (t < 1) {
+                        requestAnimationFrame(stepBotAnimation);
+                    } else {
+                        const chosenP1 = botAnimState.p1;
+                        const chosenP2 = botAnimState.p2;
+                        botAnimState = null;
+                        isBotThinking = false;
+                        attemptConnectPoints(chosenP1, chosenP2, true);
+                    }
+                }
+
+                requestAnimationFrame(stepBotAnimation);
+            }, 320);
+        }
+
+        /**
+         * Bit-length / popcount helper for 66-bit BigInt masks.
+         */
+        function popcountBigInt(mask) {
+            let c = 0;
+            let m = mask;
+            while (m > 0n) {
+                m &= (m - 1n);
+                c++;
+            }
+            return c;
+        }
+
+        /**
+         * Computes the list of valid segment IDs for a given drawn-lines bitmask and target round R.
+         */
+        function getValidSegmentIdsForState(drawnMask, targetRound) {
+            const validIds = [];
+            for (let s = 0; s < allSegments.length; s++) {
+                if ((drawnMask & (1n << BigInt(s))) !== 0n) continue;
+                const crossings = popcountBigInt(drawnMask & segCrossMatrix[s]);
+                if (crossings === targetRound) {
+                    validIds.push(s);
+                }
+            }
+            return validIds;
+        }
+
+        /**
+         * Shared state-transition simulator for drawing segment `sid` in Round `curRound` by `turnPlayer`.
+         * Enforces the exact rule: if drawing `sid` leaves 0 valid moves in `curRound`, `turnPlayer`
+         * scores `curRound` points AND keeps the turn (`nextTurnPlayer = turnPlayer`) for the next round!
+         */
+        function simulateBitmaskMove(drawnMask, zHash, curRound, turnPlayer, p1Score, p2Score, sid) {
+            const nextMask = drawnMask | (1n << BigInt(sid));
+            let nextHash = zHash ^ zobristSegKeys[sid];
+            let nextRound = curRound;
+            let nextP1Score = p1Score;
+            let nextP2Score = p2Score;
+            let nextTurnPlayer = turnPlayer;
+
+            let nextValidIds = getValidSegmentIdsForState(nextMask, nextRound);
+            let gameEnded = false;
+
+            if (nextValidIds.length === 0) {
+                // `turnPlayer` drew the last valid line of `curRound` -> award `curRound` points
+                if (turnPlayer === 1) {
+                    nextP1Score += curRound;
+                } else {
+                    nextP2Score += curRound;
+                }
+
+                // Advance round until valid moves exist or Round 3 finishes
+                let foundNext = false;
+                while (nextRound < 3) {
+                    nextHash ^= zobristRoundKeys[nextRound];
+                    nextRound++;
+                    nextHash ^= zobristRoundKeys[nextRound];
+                    nextValidIds = getValidSegmentIdsForState(nextMask, nextRound);
+                    if (nextValidIds.length > 0) {
+                        foundNext = true;
+                        break;
+                    }
+                }
+                if (!foundNext) {
+                    gameEnded = true;
+                }
+                // `nextTurnPlayer` stays `turnPlayer` (round-winner starts the next round!)
+            } else {
+                // Normal turn switch within the same round
+                nextTurnPlayer = turnPlayer === 1 ? 2 : 1;
+                nextHash ^= zobristTurnKey;
+            }
+
+            return {
+                nextMask,
+                nextHash,
+                nextRound,
+                nextTurnPlayer,
+                nextP1Score,
+                nextP2Score,
+                nextValidIds,
+                gameEnded
+            };
+        }
+
+        /**
+         * Estimates the maximum independent set size of the remaining valid moves in Round R.
+         */
+        function estimateIndependentMoveCount(validIds) {
+            const n = validIds.length;
+            if (n <= 1) return n;
+
+            let remainingMask = (1n << BigInt(n)) - 1n;
+            const localAdj = new Array(n).fill(0n);
+            for (let a = 0; a < n; a++) {
+                const segA = validIds[a];
+                for (let b = a + 1; b < n; b++) {
+                    const segB = validIds[b];
+                    if ((segCrossMatrix[segA] & (1n << BigInt(segB))) !== 0n) {
+                        localAdj[a] |= (1n << BigInt(b));
+                        localAdj[b] |= (1n << BigInt(a));
+                    }
+                }
+            }
+
+            let indepCount = 0;
+            while (remainingMask !== 0n) {
+                let bestIdx = -1;
+                let bestDeg = 999;
+                for (let i = 0; i < n; i++) {
+                    const bit = 1n << BigInt(i);
+                    if ((remainingMask & bit) === 0n) continue;
+                    const deg = popcountBigInt(localAdj[i] & remainingMask);
+                    if (deg < bestDeg) {
+                        bestDeg = deg;
+                        bestIdx = i;
+                        if (deg === 0) break;
+                    }
+                }
+                indepCount++;
+                const chosenBit = 1n << BigInt(bestIdx);
+                remainingMask &= ~(chosenBit | localAdj[bestIdx]);
+            }
+            return indepCount;
+        }
+
+        /**
+         * Heuristic board evaluation from `perspectivePlayerId`'s viewpoint.
+         * Accounts for the extra value of clinching a round (points + starting initiative in the next round).
+         */
+        function evaluateStateForPlayer(drawnMask, curRound, turnPlayer, p1Score, p2Score, validIds, perspectivePlayerId) {
+            const myScore = perspectivePlayerId === 1 ? p1Score : p2Score;
+            const oppScore = perspectivePlayerId === 1 ? p2Score : p1Score;
+
+            let score = (myScore - oppScore) * 1000;
+
+            const isMyTurn = (turnPlayer === perspectivePlayerId);
+            // Clinching Round R gives R points PLUS first-move initiative in Round R+1
+            const initiativeBonus = curRound < 3 ? 65 : 0;
+            const roundWeight = curRound * 120 + initiativeBonus;
+
+            const n = validIds.length;
+            if (n === 1) {
+                score += (isMyTurn ? 1 : -1) * (roundWeight * 0.88);
+            } else if (n > 1) {
+                const indepMoves = estimateIndependentMoveCount(validIds);
+                const parityFavorsMover = (indepMoves % 2 === 1);
+                if (parityFavorsMover) {
+                    score += (isMyTurn ? 1 : -1) * (roundWeight * 0.48);
+                } else {
+                    score += (isMyTurn ? -1 : 1) * (roundWeight * 0.48);
+                }
+            }
+
+            if (curRound < 3) {
+                const nextRoundMoves = getValidSegmentIdsForState(drawnMask, curRound + 1).length;
+                const nextParityOdd = (nextRoundMoves % 2 === 1);
+                score += (nextParityOdd === isMyTurn ? 12 : -12);
+            }
+
+            return score;
+        }
+
+        /**
+         * Helper to order candidate moves by how many other valid moves they intersect/destroy.
+         */
+        function orderCandidateMoves(validIds) {
+            let validMask = 0n;
+            for (let i = 0; i < validIds.length; i++) {
+                validMask |= (1n << BigInt(validIds[i]));
+            }
+            const scored = validIds.map(sid => {
+                const destroyed = popcountBigInt(segCrossMatrix[sid] & validMask);
+                return { sid, destroyed };
+            });
+            scored.sort((a, b) => b.destroyed - a.destroyed);
+            return scored.map(x => x.sid);
+        }
+
+        /**
+         * Selects the best move for the AI Bot using Iterative Deepening Minimax
+         * with Alpha-Beta Pruning, Zobrist Transposition Table, and Interference Move Ordering.
+         */
+        function findBestBotMove() {
+            if (previewLines.length === 0) return null;
+            if (previewLines.length === 1) return previewLines[0];
+
+            const { mask: initialMask, hash: initialHash } = getCurrentBoardMaskAndHash();
+            const initialValidIds = getValidSegmentIdsForState(initialMask, round);
+            if (initialValidIds.length === 0) return previewLines[0];
+
+            const startTime = performance.now();
+            const timeBudgetMs = 160;
+            const transTable = new Map();
+            let searchAborted = false;
+
+            function alphaBeta(drawnMask, zHash, curRound, turnPlayer, p1Score, p2Score, depth, alpha, beta, precomputedValidIds) {
+                if ((performance.now() - startTime) > timeBudgetMs) {
+                    searchAborted = true;
+                    return 0;
+                }
+
+                const ttEntry = transTable.get(zHash);
+                const stateKeyScore = (p1Score << 4) | p2Score | (turnPlayer << 8);
+                if (ttEntry && ttEntry.depth >= depth && ttEntry.scoreKey === stateKeyScore) {
+                    return ttEntry.value;
+                }
+
+                const validIds = precomputedValidIds || getValidSegmentIdsForState(drawnMask, curRound);
+                if (depth <= 0 || validIds.length === 0) {
+                    return evaluateStateForPlayer(drawnMask, curRound, turnPlayer, p1Score, p2Score, validIds, botPlayerId);
+                }
+
+                const orderedMoves = orderCandidateMoves(validIds);
+                const isMaximizing = (turnPlayer === botPlayerId);
+                let bestVal = isMaximizing ? -Infinity : Infinity;
+
+                for (let i = 0; i < orderedMoves.length; i++) {
+                    const sid = orderedMoves[i];
+                    const sim = simulateBitmaskMove(drawnMask, zHash, curRound, turnPlayer, p1Score, p2Score, sid);
+
+                    let val;
+                    if (sim.gameEnded) {
+                        const myFinal = botPlayerId === 1 ? sim.nextP1Score : sim.nextP2Score;
+                        const oppFinal = botPlayerId === 1 ? sim.nextP2Score : sim.nextP1Score;
+                        const diff = myFinal - oppFinal;
+                        val = diff * 10000 + (diff > 0 ? depth * 50 : -depth * 50);
+                    } else {
+                        val = alphaBeta(
+                            sim.nextMask,
+                            sim.nextHash,
+                            sim.nextRound,
+                            sim.nextTurnPlayer,
+                            sim.nextP1Score,
+                            sim.nextP2Score,
+                            depth - 1,
+                            alpha,
+                            beta,
+                            sim.nextValidIds
+                        );
+                    }
+
+                    if (searchAborted) return 0;
+
+                    if (isMaximizing) {
+                        if (val > bestVal) bestVal = val;
+                        if (bestVal > alpha) alpha = bestVal;
+                        if (alpha >= beta) break;
+                    } else {
+                        if (val < bestVal) bestVal = val;
+                        if (bestVal < beta) beta = bestVal;
+                        if (alpha >= beta) break;
+                    }
+                }
+
+                if (!searchAborted && transTable.size < 25000) {
+                    transTable.set(zHash, {
+                        depth,
+                        scoreKey: stateKeyScore,
+                        value: bestVal
+                    });
+                }
+
+                return bestVal;
+            }
+
+            const rootMoves = orderCandidateMoves(initialValidIds);
+            let bestMoveSid = rootMoves[0];
+
+            for (let depth = 1; depth <= 14; depth++) {
+                let currentBestSid = rootMoves[0];
+                let currentBestVal = -Infinity;
+                let alpha = -Infinity;
+                const beta = Infinity;
+
+                for (let i = 0; i < rootMoves.length; i++) {
+                    const sid = rootMoves[i];
+                    const sim = simulateBitmaskMove(
+                        initialMask,
+                        initialHash,
+                        round,
+                        botPlayerId,
+                        players[1].score,
+                        players[2].score,
+                        sid
+                    );
+
+                    let val;
+                    if (sim.gameEnded) {
+                        const myFinal = botPlayerId === 1 ? sim.nextP1Score : sim.nextP2Score;
+                        const oppFinal = botPlayerId === 1 ? sim.nextP2Score : sim.nextP1Score;
+                        const diff = myFinal - oppFinal;
+                        val = diff * 10000 + depth * 50;
+                    } else {
+                        val = alphaBeta(
+                            sim.nextMask,
+                            sim.nextHash,
+                            sim.nextRound,
+                            sim.nextTurnPlayer,
+                            sim.nextP1Score,
+                            sim.nextP2Score,
+                            depth - 1,
+                            alpha,
+                            beta,
+                            sim.nextValidIds
+                        );
+                    }
+
+                    if (searchAborted) break;
+
+                    if (val > currentBestVal) {
+                        currentBestVal = val;
+                        currentBestSid = sid;
+                    }
+                    if (currentBestVal > alpha) {
+                        alpha = currentBestVal;
+                    }
+                }
+
+                if (!searchAborted) {
+                    bestMoveSid = currentBestSid;
+                } else {
+                    break;
+                }
+            }
+
+            const chosenSeg = allSegments[bestMoveSid];
+            return [chosenSeg.p1, chosenSeg.p2];
+        }
+
+        /**
+         * Calculates and updates the live Total Win Probability Percentage for Player 1 and Player 2
+         * after every line is drawn (and at the start of the game).
+         * Combines:
+         *  1. Exact mathematical lock detection (when a player's lead > remaining points possible)
+         *  2. Tactical 3-ply Minimax evaluation from Player 1's perspective
+         *  3. 40 smart bitmask Monte-Carlo rollouts to the end of Round 3
+         */
+        function updateWinProbability() {
+            if (gameState === "WAITING" || allSegments.length === 0) {
+                p1WinProbability = 50;
+                updateWinProbDOM();
+                return;
+            }
+
+            if (gameState === "GAMEOVER") {
+                if (players[1].score > players[2].score) p1WinProbability = 100;
+                else if (players[2].score > players[1].score) p1WinProbability = 0;
+                else p1WinProbability = 50;
+                updateWinProbDOM();
+                return;
+            }
+
+            // Maximum remaining points available from current `round` through Round 3
+            let maxRemainingPts = 0;
+            for (let r = round; r <= 3; r++) maxRemainingPts += r;
+
+            if (players[1].score > players[2].score + maxRemainingPts) {
+                p1WinProbability = 100;
+                updateWinProbDOM();
+                return;
+            }
+            if (players[2].score > players[1].score + maxRemainingPts) {
+                p1WinProbability = 0;
+                updateWinProbDOM();
+                return;
+            }
+
+            const { mask: rootMask, hash: rootHash } = getCurrentBoardMaskAndHash();
+            const rootValidIds = getValidSegmentIdsForState(rootMask, round);
+
+            // 1. Tactical shallow Minimax evaluation for Player 1
+            function quickMinimaxP1(drawnMask, zHash, curRound, turnPlayer, p1S, p2S, depth, alpha, beta, validIds) {
+                if (depth <= 0 || validIds.length === 0) {
+                    return evaluateStateForPlayer(drawnMask, curRound, turnPlayer, p1S, p2S, validIds, 1);
+                }
+                const ordered = orderCandidateMoves(validIds);
+                const isMax = (turnPlayer === 1);
+                let best = isMax ? -Infinity : Infinity;
+                const limit = Math.min(ordered.length, 8); // Top 8 high-impact moves for instant UI speed
+
+                for (let i = 0; i < limit; i++) {
+                    const sim = simulateBitmaskMove(drawnMask, zHash, curRound, turnPlayer, p1S, p2S, ordered[i]);
+                    let val;
+                    if (sim.gameEnded) {
+                        val = (sim.nextP1Score - sim.nextP2Score) * 1500;
+                    } else {
+                        val = quickMinimaxP1(
+                            sim.nextMask,
+                            sim.nextHash,
+                            sim.nextRound,
+                            sim.nextTurnPlayer,
+                            sim.nextP1Score,
+                            sim.nextP2Score,
+                            depth - 1,
+                            alpha,
+                            beta,
+                            sim.nextValidIds
+                        );
+                    }
+                    if (isMax) {
+                        if (val > best) best = val;
+                        if (best > alpha) alpha = best;
+                        if (alpha >= beta) break;
+                    } else {
+                        if (val < best) best = val;
+                        if (best < beta) beta = best;
+                        if (alpha >= beta) break;
+                    }
+                }
+                return best;
+            }
+
+            const evalScore = quickMinimaxP1(
+                rootMask,
+                rootHash,
+                round,
+                currentTurn,
+                players[1].score,
+                players[2].score,
+                3,
+                -Infinity,
+                Infinity,
+                rootValidIds
+            );
+            // Logistic conversion of tactical evaluation into [0..1] probability
+            const heuristicProb = 1 / (1 + Math.exp(-evalScore / 650));
+
+            // 2. 40 Smart Bitmask Monte-Carlo Rollouts to the end of Round 3
+            const ROLLOUTS = 40;
+            let p1RolloutPoints = 0;
+
+            for (let r = 0; r < ROLLOUTS; r++) {
+                let mMask = rootMask;
+                let mHash = rootHash;
+                let mRound = round;
+                let mTurn = currentTurn;
+                let mP1 = players[1].score;
+                let mP2 = players[2].score;
+                let mValid = rootValidIds;
+                let ended = false;
+                let steps = 0;
+
+                while (!ended && mValid.length > 0 && steps < 45) {
+                    steps++;
+                    let chosenSid = mValid[0];
+
+                    if (mValid.length > 1) {
+                        // Check if any move immediately clinches the current round (destroys all other valid moves)
+                        let validMask = 0n;
+                        for (let k = 0; k < mValid.length; k++) {
+                            validMask |= (1n << BigInt(mValid[k]));
+                        }
+                        let clincherSid = -1;
+                        const totalOther = mValid.length - 1;
+                        for (let k = 0; k < mValid.length; k++) {
+                            const cand = mValid[k];
+                            if (popcountBigInt(segCrossMatrix[cand] & validMask) === totalOther) {
+                                clincherSid = cand;
+                                break;
+                            }
+                        }
+
+                        if (clincherSid >= 0) {
+                            chosenSid = clincherSid;
+                        } else {
+                            chosenSid = mValid[Math.floor(Math.random() * mValid.length)];
+                        }
+                    }
+
+                    const sim = simulateBitmaskMove(mMask, mHash, mRound, mTurn, mP1, mP2, chosenSid);
+                    mMask = sim.nextMask;
+                    mHash = sim.nextHash;
+                    mRound = sim.nextRound;
+                    mTurn = sim.nextTurnPlayer;
+                    mP1 = sim.nextP1Score;
+                    mP2 = sim.nextP2Score;
+                    mValid = sim.nextValidIds;
+                    ended = sim.gameEnded;
+                }
+
+                if (mP1 > mP2) p1RolloutPoints += 1.0;
+                else if (mP1 === mP2) p1RolloutPoints += 0.5;
+            }
+
+            const mcProb = p1RolloutPoints / ROLLOUTS;
+
+            // Blend tactical Minimax probability (55%) + Monte-Carlo rollout probability (45%)
+            const blended = 0.55 * heuristicProb + 0.45 * mcProb;
+            p1WinProbability = Math.max(1, Math.min(99, Math.round(blended * 100)));
+            updateWinProbDOM();
+        }
+
+        function updateWinProbDOM() {
+            const p1Pct = Math.round(p1WinProbability);
+            const p2Pct = 100 - p1Pct;
+
+            const p1Text = document.getElementById("p1WinProbText");
+            const p2Text = document.getElementById("p2WinProbText");
+            const p1Bar = document.getElementById("p1WinProbBar");
+            const p2Bar = document.getElementById("p2WinProbBar");
+
+            if (!p1Text || !p2Text || !p1Bar || !p2Bar) return;
+
+            p1Text.textContent = `${players[1].name} ${p1Pct}%`;
+            p2Text.textContent = `${p2Pct}% ${players[2].name}`;
+
+            p1Text.style.color = players[1].color;
+            p2Text.style.color = players[2].color;
+
+            p1Bar.style.width = `${p1Pct}%`;
+            p2Bar.style.width = `${p2Pct}%`;
+            p1Bar.style.backgroundColor = players[1].color;
+            p2Bar.style.backgroundColor = players[2].color;
+        }
+
+        // =========================================================================
+        // 6. UNIFIED POINTER (MOUSE + TOUCH) INTERACTION
+        // =========================================================================
+
+        function getLogicalCoordinates(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (clientX - rect.left) / displayScale,
+                y: (clientY - rect.top) / displayScale
+            };
+        }
+
+        function findClosestPoint(logicalPos, isTouch = false) {
+            const baseHit = isTouch ? 62 : 45;
+            let bestPoint = null;
+            let bestDist = baseHit;
+            for (let p of points) {
+                const d = distance(p, logicalPos);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestPoint = p;
+                }
+            }
+            return bestPoint;
+        }
+
+        canvas.addEventListener("pointerdown", (e) => {
+            if (gameState !== "PLAYING" || timerPaused || isBotTurn()) return;
+            e.preventDefault();
+            try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
+
+            const pos = getLogicalCoordinates(e.clientX, e.clientY);
+            pointerPos = pos;
+
+            const isTouch = e.pointerType === "touch";
+            const hitPoint = findClosestPoint(pos, isTouch);
+            hoveredPoint = hitPoint;
+
+            if (hitPoint) {
+                if (!firstSelectedPoint) {
+                    firstSelectedPoint = hitPoint;
+                    isDragging = true;
+                } else if (firstSelectedPoint === hitPoint) {
+                    firstSelectedPoint = null;
+                    isDragging = false;
+                } else {
+                    attemptConnectPoints(firstSelectedPoint, hitPoint);
+                    firstSelectedPoint = null;
+                    isDragging = false;
+                }
+            } else {
+                firstSelectedPoint = null;
+                isDragging = false;
+            }
+
+            renderBoard();
+        });
+
+        canvas.addEventListener("pointermove", (e) => {
+            if (gameState !== "PLAYING" || timerPaused || isBotTurn()) return;
+            const pos = getLogicalCoordinates(e.clientX, e.clientY);
+            pointerPos = pos;
+
+            const isTouch = e.pointerType === "touch";
+            const newHovered = findClosestPoint(pos, isTouch);
+
+            if (firstSelectedPoint || newHovered !== hoveredPoint) {
+                hoveredPoint = newHovered;
+                renderBoard();
+            }
+        });
+
+        canvas.addEventListener("pointerup", (e) => {
+            if (gameState !== "PLAYING" || timerPaused || isBotTurn()) return;
+            const pos = getLogicalCoordinates(e.clientX, e.clientY);
+            const isTouch = e.pointerType === "touch";
+            const releasePoint = findClosestPoint(pos, isTouch);
+
+            if (isDragging && firstSelectedPoint && releasePoint && releasePoint !== firstSelectedPoint) {
+                attemptConnectPoints(firstSelectedPoint, releasePoint);
+                firstSelectedPoint = null;
+            }
+            isDragging = false;
+            renderBoard();
+        });
+
+        // =========================================================================
+        // 7. PER-TURN COUNTDOWN CLOCK ENGINE (30s or 1m, switches turn on timeout)
+        // =========================================================================
+
+        function formatTurnTime(ms) {
+            const clamped = Math.max(0, ms);
+            const totalSeconds = clamped / 1000;
+            const mins = Math.floor(totalSeconds / 60);
+            const secs = Math.floor(totalSeconds % 60);
+
+            if (totalSeconds < 10 && gameState === "PLAYING") {
+                const tenths = Math.floor((clamped % 1000) / 100);
+                return `${mins}:${String(secs).padStart(2, "0")}.${tenths}`;
+            }
+            return `${mins}:${String(secs).padStart(2, "0")}`;
+        }
+
+        function updateTimerDisplayDOM() {
+            const fullTurnMs = turnDurationSeconds * 1000;
+
+            for (let pid of [1, 2]) {
+                const timerEl = document.getElementById(`p${pid}TimerDisplay`);
+                const boxEl = document.getElementById(`p${pid}TimerBox`);
+
+                const isCurrentPlayerTurn = (gameState === "PLAYING" && currentTurn === pid);
+                const msToShow = isCurrentPlayerTurn ? turnTimeRemainingMs : fullTurnMs;
+
+                timerEl.textContent = formatTurnTime(msToShow);
+
+                const isUrgent = (isCurrentPlayerTurn && !timerPaused && turnTimeRemainingMs > 0 && turnTimeRemainingMs <= 8000);
+                if (isUrgent) {
+                    boxEl.classList.add("timer-urgent", "border-rose-500", "bg-rose-950/60");
+                    timerEl.classList.add("text-rose-400");
+                } else {
+                    boxEl.classList.remove("timer-urgent", "border-rose-500", "bg-rose-950/60");
+                    timerEl.classList.remove("text-rose-400");
+                }
+            }
+        }
+
+        function tickTurnClock(now) {
+            const dt = now - lastFrameTime;
+            lastFrameTime = now;
+
+            if (gameState === "PLAYING" && !timerPaused) {
+                turnTimeRemainingMs = Math.max(0, turnTimeRemainingMs - dt);
+                updateTimerDisplayDOM();
+
+                if (turnTimeRemainingMs <= 0) {
+                    const timedOutPlayerName = players[currentTurn].name;
+                    switchTurnAndResetClock();
+                    showToast(`⏱ ${timedOutPlayerName} ran out of time! Turn switched to ${players[currentTurn].name}.`, "error");
+                }
+            }
+            requestAnimationFrame(tickTurnClock);
+        }
+
+        function setTurnDuration(seconds) {
+            turnDurationSeconds = seconds;
+            turnTimeRemainingMs = turnDurationSeconds * 1000;
+            lastFrameTime = performance.now();
+
+            const is30 = (seconds === 30);
+            const activeClass = "bg-indigo-600 text-white shadow";
+            const inactiveClass = "text-slate-400 hover:text-white";
+
+            document.getElementById("lobbyTime30Btn").className = `py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition ${is30 ? activeClass : inactiveClass}`;
+            document.getElementById("lobbyTime60Btn").className = `py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition ${!is30 ? activeClass : inactiveClass}`;
+
+            document.getElementById("barTime30Btn").className = `fluid-btn px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md sm:rounded-lg font-bold transition ${is30 ? activeClass : inactiveClass}`;
+            document.getElementById("barTime60Btn").className = `fluid-btn px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md sm:rounded-lg font-bold transition ${!is30 ? activeClass : inactiveClass}`;
+
+            updateTimerDisplayDOM();
+        }
+
+        function toggleTimerPause() {
+            if (gameState !== "PLAYING") return;
+            timerPaused = !timerPaused;
+            const pauseOverlay = document.getElementById("pauseOverlay");
+            const pauseBtnText = document.getElementById("pauseBtnText");
+            const pauseIcon = document.getElementById("pauseIcon");
+
+            if (timerPaused) {
+                pauseOverlay.classList.remove("hidden");
+                pauseBtnText.textContent = "Resume";
+                pauseIcon.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+            } else {
+                pauseOverlay.classList.add("hidden");
+                pauseBtnText.textContent = "Pause";
+                pauseIcon.innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+                lastFrameTime = performance.now();
+                triggerBotTurnIfNeeded();
+            }
+            updateHUD();
+        }
+
+        // =========================================================================
+        // 8. UI HUD, CUSTOMIZATION MODALS & FEEDBACK TOASTS
+        // =========================================================================
+
+        function updateHUD() {
+            // Sync Lobby Player Preview Pills
+            document.getElementById("lobbyP1Dot").style.backgroundColor = players[1].color;
+            document.getElementById("lobbyP1Name").textContent = players[1].name;
+            document.getElementById("lobbyP2Dot").style.backgroundColor = players[2].color;
+            document.getElementById("lobbyP2Name").textContent = players[2].name;
+
+            // Update Player 1 & Player 2 Top Cards
+            for (let pid of [1, 2]) {
+                const isTurn = (gameState === "PLAYING" && currentTurn === pid);
+                const card = document.getElementById(`p${pid}Card`);
+                const swatch = document.getElementById(`p${pid}Swatch`);
+                const turnDot = document.getElementById(`p${pid}TurnDot`);
+                const nameEl = document.getElementById(`p${pid}NameDisplay`);
+                const scoreEl = document.getElementById(`p${pid}ScoreDisplay`);
+                const statusLabel = document.getElementById(`p${pid}StatusLabel`);
+                const timerEl = document.getElementById(`p${pid}TimerDisplay`);
+
+                nameEl.textContent = players[pid].name;
+                swatch.style.backgroundColor = players[pid].color;
+                scoreEl.textContent = `${players[pid].score} pt${players[pid].score === 1 ? '' : 's'}`;
+
+                if (isTurn) {
+                    card.style.borderColor = players[pid].color;
+                    card.style.boxShadow = `0 0 22px -5px ${players[pid].color}66`;
+                    turnDot.classList.remove("hidden");
+                    turnDot.classList.add("absolute");
+                    const isBotSlot = (gameMode === "PVB" && pid === botPlayerId);
+                    statusLabel.textContent = timerPaused ? "Paused" : (isBotSlot ? "Bot Thinking..." : "Your Turn");
+                    statusLabel.style.color = players[pid].color;
+                    timerEl.classList.remove("text-slate-400");
+                    timerEl.classList.add("text-white");
+                } else {
+                    card.style.borderColor = "#1e293b";
+                    card.style.boxShadow = "none";
+                    turnDot.classList.add("hidden");
+                    turnDot.classList.remove("absolute");
+                    statusLabel.textContent = gameState === "WAITING" ? "Ready" : (gameState === "GAMEOVER" ? "Done" : "Waiting");
+                    statusLabel.style.color = "#94a3b8";
+                    timerEl.classList.remove("text-white");
+                    timerEl.classList.add("text-slate-400");
+                }
+            }
+
+            // Update Round Stepper Badges
+            for (let r = 1; r <= 3; r++) {
+                const badge = document.getElementById(`roundBadge${r}`);
+                if (gameState === "PLAYING" && r === round) {
+                    badge.className = "fluid-badge px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-lg font-bold bg-indigo-600 text-white shadow-sm transition-all";
+                } else if ((gameState === "PLAYING" && r < round) || gameState === "GAMEOVER") {
+                    badge.className = "fluid-badge px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-lg font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 transition-all";
+                } else {
+                    badge.className = "fluid-badge px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-lg font-medium bg-slate-950 text-slate-500 border border-slate-800/70 transition-all";
+                }
+            }
+
+            // Update Valid Moves & Rule Hint
+            const validCountEl = document.getElementById("validMovesCount");
+            const ruleHint = document.getElementById("ruleHintText");
+            if (gameState === "WAITING") {
+                validCountEl.textContent = "—";
+                ruleHint.innerHTML = `Press <span class="text-emerald-400 font-bold">Play</span>`;
+            } else if (gameState === "GAMEOVER") {
+                validCountEl.textContent = "0";
+                ruleHint.innerHTML = `<span class="text-emerald-400 font-bold">Game Over</span>`;
+            } else {
+                validCountEl.textContent = previewLines.length;
+                ruleHint.innerHTML = `Cross <span class="text-amber-400 font-bold">${round}</span> line${round > 1 ? 's' : ''}`;
+            }
+
+            // Update Helper Lines Button Badge
+            const helperDot = document.getElementById("helperDot");
+            const helperBadge = document.getElementById("helperCountBadge");
+            const helperBtn = document.getElementById("validlineButton");
+            if (showHelperLines) {
+                helperDot.className = "w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#fbbf24]";
+                helperBadge.textContent = gameState === "PLAYING" ? `${previewLines.length}` : "ON";
+                helperBadge.className = "px-1.5 py-0.5 text-[10px] sm:text-[11px] rounded bg-amber-500/20 text-amber-300 font-mono font-bold";
+                helperBtn.classList.add("border-amber-500/50");
+            } else {
+                helperDot.className = "w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-slate-500";
+                helperBadge.textContent = "OFF";
+                helperBadge.className = "px-1.5 py-0.5 text-[10px] sm:text-[11px] rounded bg-slate-950 text-slate-400 font-mono";
+                helperBtn.classList.remove("border-amber-500/50");
+            }
+
+            // Sync Bottom Bar Main Action & Pause Button
+            const pauseBtn = document.getElementById("pauseTimerBtn");
+            const mainActionBtn = document.getElementById("mainActionBtn");
+            const mainActionText = document.getElementById("mainActionText");
+            const mainActionIcon = document.getElementById("mainActionIcon");
+
+            if (gameState === "PLAYING") {
+                pauseBtn.classList.remove("hidden");
+                pauseBtn.classList.add("inline-flex");
+                mainActionBtn.className = "fluid-btn inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition active:scale-95";
+                mainActionText.textContent = "New Game";
+                mainActionIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" stroke="currentColor" fill="none" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>`;
+            } else {
+                pauseBtn.classList.add("hidden");
+                pauseBtn.classList.remove("inline-flex");
+                mainActionBtn.className = "fluid-btn inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition active:scale-95";
+                mainActionText.textContent = "Play";
+                mainActionIcon.innerHTML = `<path d="M8 5v14l11-7z"/>`;
+            }
+
+            // Keep Win Probability Bar colors & names synced
+            updateWinProbDOM();
+        }
+
+        function toggleHelperLines() {
+            showHelperLines = !showHelperLines;
+            updateHUD();
+            renderBoard();
+        }
+
+        function showToast(message, type = "error") {
+            const toast = document.getElementById("feedbackToast");
+            const inner = document.getElementById("feedbackToastInner");
+            const text = document.getElementById("feedbackToastText");
+
+            text.textContent = message;
+            if (type === "error") {
+                inner.className = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-xl font-semibold fluid-badge text-center flex items-center justify-center gap-2 border backdrop-blur-md bg-rose-950/95 border-rose-500/60 text-rose-100";
+            } else {
+                inner.className = "px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-xl font-semibold fluid-badge text-center flex items-center justify-center gap-2 border backdrop-blur-md bg-emerald-950/95 border-emerald-500/60 text-emerald-100";
+            }
+
+            toast.classList.remove("opacity-0", "-translate-y-2");
+            toast.classList.add("opacity-100", "translate-y-0");
+
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove("opacity-100", "translate-y-0");
+                toast.classList.add("opacity-0", "-translate-y-2");
+            }, 2600);
+        }
+
+        // =========================================================================
+        // 9. PLAYER NAME & COLOR CUSTOMIZATION MODAL
+        // =========================================================================
+
+        function openPlayerModal(playerId) {
+            editingPlayerId = playerId;
+            const p = players[playerId];
+            selectedModalColor = p.color;
+
+            document.getElementById("modalTitle").textContent = `Customize ${p.name}`;
+            const nameInput = document.getElementById("playerNameInput");
+            nameInput.value = p.name;
+
+            renderColorSwatches();
+            document.getElementById("customColorPicker").value = p.color;
+            document.getElementById("customColorHexLabel").textContent = p.color.toUpperCase();
+
+            document.getElementById("playerModal").classList.remove("hidden");
+            setTimeout(() => nameInput.focus(), 50);
+        }
+
+        function renderColorSwatches() {
+            const grid = document.getElementById("colorSwatchesGrid");
+            grid.innerHTML = "";
+            PRESET_COLORS.forEach(hex => {
+                const isSelected = hex.toLowerCase() === selectedModalColor.toLowerCase();
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.style.backgroundColor = hex;
+                btn.className = `h-8 sm:h-9 rounded-xl transition transform hover:scale-105 flex items-center justify-center ${
+                    isSelected ? "ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-105" : "opacity-85 hover:opacity-100"
+                }`;
+                btn.onclick = () => selectCustomColor(hex);
+                if (isSelected) {
+                    btn.innerHTML = `<svg class="w-4 h-4 text-white drop-shadow" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>`;
+                }
+                grid.appendChild(btn);
+            });
+        }
+
+        function selectCustomColor(hex) {
+            selectedModalColor = hex;
+            document.getElementById("customColorPicker").value = hex;
+            document.getElementById("customColorHexLabel").textContent = hex.toUpperCase();
+            renderColorSwatches();
+        }
+
+        function savePlayerCustomization() {
+            const rawName = document.getElementById("playerNameInput").value.trim();
+            players[editingPlayerId].name = rawName || `Player ${editingPlayerId}`;
+            players[editingPlayerId].color = selectedModalColor;
+
+            closePlayerModal();
+            updateHUD();
+            renderBoard();
+        }
+
+        function closePlayerModal() {
+            document.getElementById("playerModal").classList.add("hidden");
+        }
+
+        document.getElementById("playerNameInput").addEventListener("keydown", (e) => {
+            if (e.key === "Enter") savePlayerCustomization();
+            if (e.key === "Escape") closePlayerModal();
+        });
+
+        // =========================================================================
+        // 10. LOBBY, PLAY START & GAME OVER WORKFLOWS
+        // =========================================================================
+
+        function handleMainActionButton() {
+            if (gameState === "WAITING" || gameState === "GAMEOVER") {
+                startNewPlaySession();
+            } else {
+                returnToLobby();
+            }
+        }
+
+        function returnToLobby() {
+            closeGameOverModal();
+            if (botTurnTimeoutId) {
+                clearTimeout(botTurnTimeoutId);
+                botTurnTimeoutId = null;
+            }
+            isBotThinking = false;
+            botAnimState = null;
+            gameState = "WAITING";
+            timerPaused = false;
+            points = [];
+            existingLines = [];
+            previewLines = [];
+            firstSelectedPoint = null;
+            hoveredPoint = null;
+            players[1].score = 0;
+            players[2].score = 0;
+            p1WinProbability = 50;
+            turnTimeRemainingMs = turnDurationSeconds * 1000;
+
+            document.getElementById("pauseOverlay").classList.add("hidden");
+            document.getElementById("startLobbyOverlay").classList.remove("hidden");
+
+            resizeCanvasToContainer();
+            updateTimerDisplayDOM();
+            updateHUD();
+        }
+
+        function startNewPlaySession() {
+            closeGameOverModal();
+            if (botTurnTimeoutId) {
+                clearTimeout(botTurnTimeoutId);
+                botTurnTimeoutId = null;
+            }
+            isBotThinking = false;
+            botAnimState = null;
+            document.getElementById("startLobbyOverlay").classList.add("hidden");
+            document.getElementById("pauseOverlay").classList.add("hidden");
+
+            applyBotSlotNaming();
+            gameState = "PLAYING";
+            timerPaused = false;
+            document.getElementById("pauseBtnText").textContent = "Pause";
+            document.getElementById("pauseIcon").innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+
+            players[1].score = 0;
+            players[2].score = 0;
+            currentTurn = 1;
+            firstSelectedPoint = null;
+            hoveredPoint = null;
+            turnTimeRemainingMs = turnDurationSeconds * 1000;
+
+            generatePoints();
+            resizeCanvasToContainer();
+            updateTimerDisplayDOM();
+            updateHUD();
+            lastFrameTime = performance.now();
+            triggerBotTurnIfNeeded();
+        }
+
+        function endGame() {
+            gameState = "GAMEOVER";
+            firstSelectedPoint = null;
+            updateWinProbability();
+            updateHUD();
+            renderBoard();
+
+            const titleEl = document.getElementById("gameOverTitle");
+            const subEl = document.getElementById("gameOverSubtitle");
+
+            if (players[1].score > players[2].score) {
+                titleEl.textContent = `${players[1].name} Wins!`;
+                subEl.textContent = `Victory by ${players[1].score} to ${players[2].score} points across 3 rounds.`;
+            } else if (players[2].score > players[1].score) {
+                titleEl.textContent = `${players[2].name} Wins!`;
+                subEl.textContent = `Victory by ${players[2].score} to ${players[1].score} points across 3 rounds.`;
+            } else {
+                titleEl.textContent = "It's a Draw!";
+                subEl.textContent = `Both players finished with ${players[1].score} points.`;
+            }
+
+            for (let pid of [1, 2]) {
+                document.getElementById(`goP${pid}Dot`).style.backgroundColor = players[pid].color;
+                document.getElementById(`goP${pid}Name`).textContent = players[pid].name;
+                document.getElementById(`goP${pid}Score`).textContent = `${players[pid].score} pts`;
+                const linesCount = existingLines.filter(l => l.owner === pid).length;
+                document.getElementById(`goP${pid}Lines`).textContent = `${linesCount} line${linesCount === 1 ? '' : 's'} drawn`;
+            }
+
+            document.getElementById("gameOverModal").classList.remove("hidden");
+        }
+
+        function closeGameOverModal() {
+            document.getElementById("gameOverModal").classList.add("hidden");
+        }
+
+        function openRulesModal() {
+            document.getElementById("rulesModal").classList.remove("hidden");
+        }
+
+        function closeRulesModal() {
+            document.getElementById("rulesModal").classList.add("hidden");
+        }
+
+        // =========================================================================
+        // 11. INITIALIZATION & RESIZE LISTENERS
+        // =========================================================================
+
+        window.addEventListener("resize", () => {
+            resizeCanvasToContainer();
+        });
+
+        window.onload = function () {
+            resizeCanvasToContainer();
+            updateTimerDisplayDOM();
+            updateHUD();
+            lastFrameTime = performance.now();
+            requestAnimationFrame(tickTurnClock);
+        };
+    </script>
 </body>
 </html>
-
-
