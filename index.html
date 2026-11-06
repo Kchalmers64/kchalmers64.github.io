@@ -85,18 +85,39 @@
         .timer-urgent {
             animation: pulse-urgent 0.85s infinite ease-in-out;
         }
+        @keyframes loader-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loader-ring {
+            animation: loader-spin 0.8s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+        }
+        /* Thin custom scrollbar for replay move strip */
+        .thin-scroll::-webkit-scrollbar {
+            height: 4px;
+            width: 4px;
+        }
+        .thin-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .thin-scroll::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.5);
+            border-radius: 9999px;
+        }
     </style>
 </head>
 <body class="flex flex-col justify-between h-[100dvh] bg-slate-950 text-slate-100 font-sans select-none overflow-hidden">
 
+    <!-- Hidden File Input for Uploading a Dots Position File (.json) -->
+    <input id="dotsFileInput" type="file" accept=".json,application/json" class="hidden" onchange="handleDotsFileSelected(event)">
+
     <!-- TOP BAR: Player 1 & Player 2 Cards + Center Round & Win Probability Status -->
-    <header class="w-full max-w-6xl mx-auto px-2 sm:px-5 pt-1.5 sm:pt-3 pb-1 shrink-0">
+    <header class="w-full max-w-6xl mx-auto px-2 sm:px-5 pt-1.5 sm:pt-2.5 pb-1 shrink-0">
         <div class="grid grid-cols-2 lg:grid-cols-12 gap-1.5 sm:gap-2.5 items-center">
             
             <!-- PLAYER 1 CARD -->
             <div id="p1Card" class="player-card lg:col-span-4 relative rounded-xl sm:rounded-2xl bg-slate-900/90 border-2 border-slate-800 p-1.5 sm:p-2.5 flex items-center justify-between gap-1.5 sm:gap-2 cursor-pointer hover:border-slate-700 group"
                  onclick="openPlayerModal(1)" title="Tap to customize Player 1 name & color">
-                <!-- Left: Color Indicator + Name + Score -->
                 <div class="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
                     <div class="relative shrink-0">
                         <span id="p1Swatch" class="block w-3 h-8 sm:w-4 sm:h-10 rounded-full shadow-inner transition-transform group-hover:scale-105" style="background-color: #2563eb;"></span>
@@ -124,7 +145,7 @@
                 </div>
             </div>
 
-            <!-- CENTER STATUS PANEL (Spans full width below cards on mobile, center column on desktop) -->
+            <!-- CENTER STATUS PANEL -->
             <div class="col-span-2 lg:col-span-4 order-3 lg:order-2 bg-slate-900/80 border border-slate-800/90 rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:py-2 flex flex-col gap-1.5">
                 <!-- Top Row: Round Stepper + Valid Lines Counter -->
                 <div class="flex items-center justify-between sm:justify-around gap-1.5">
@@ -145,12 +166,22 @@
                     </div>
                 </div>
 
-                <!-- Bottom Row: Live Total Win Probability Bar & Percentage Counter -->
+                <!-- Bottom Row: Live Total Win Probability Bar & Save Dots File Button -->
                 <div class="w-full pt-0.5 border-t border-slate-800/80">
                     <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-mono font-bold leading-none mb-1">
-                        <span id="p1WinProbText" class="transition-colors" style="color: #60a5fa;">P1 50%</span>
-                        <span class="text-[9px] sm:text-[10px] font-sans uppercase tracking-wider text-slate-400 font-semibold">Win Probability</span>
-                        <span id="p2WinProbText" class="transition-colors" style="color: #fb7185;">50% P2</span>
+                        <span id="p1WinProbText" class="transition-colors truncate max-w-[32%]" style="color: #60a5fa;">P1 50%</span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] sm:text-[10px] font-sans uppercase tracking-wider text-slate-400 font-semibold">Win Prob</span>
+                            <button id="hudSaveDotsBtn" type="button" onclick="downloadDotsPositionFile()"
+                                    class="hidden items-center gap-1 px-1.5 py-0.5 rounded bg-slate-950 hover:bg-slate-800 text-indigo-300 border border-slate-700 text-[9px] font-sans font-semibold transition"
+                                    title="Download current 12 dots position file (.json)">
+                                <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                                </svg>
+                                <span>Save Dots</span>
+                            </button>
+                        </div>
+                        <span id="p2WinProbText" class="transition-colors truncate max-w-[32%] text-right" style="color: #fb7185;">50% P2</span>
                     </div>
                     <div class="w-full h-2 sm:h-2.5 rounded-full bg-slate-950 overflow-hidden flex p-0.5 border border-slate-800/90">
                         <div id="p1WinProbBar" class="h-full rounded-l-full transition-all duration-300 ease-out" style="width: 50%; background-color: #2563eb;"></div>
@@ -162,7 +193,6 @@
             <!-- PLAYER 2 CARD -->
             <div id="p2Card" class="player-card lg:col-span-4 order-2 lg:order-3 relative rounded-xl sm:rounded-2xl bg-slate-900/90 border-2 border-slate-800 p-1.5 sm:p-2.5 flex items-center justify-between gap-1.5 sm:gap-2 cursor-pointer hover:border-slate-700 group"
                  onclick="openPlayerModal(2)" title="Tap to customize Player 2 name & color">
-                <!-- Left: Color Indicator + Name + Score -->
                 <div class="flex items-center gap-1.5 sm:gap-2.5 min-w-0">
                     <div class="relative shrink-0">
                         <span id="p2Swatch" class="block w-3 h-8 sm:w-4 sm:h-10 rounded-full shadow-inner transition-transform group-hover:scale-105" style="background-color: #e11d48;"></span>
@@ -206,30 +236,41 @@
                 </div>
             </div>
 
+            <!-- LOADING CIRCLE OVERLAY (Shown when pressing Play during point generation) -->
+            <div id="loadingOverlay" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md z-40 flex flex-col items-center justify-center p-4 text-center">
+                <div class="relative w-14 h-14 sm:w-16 sm:h-16 mb-3.5 flex items-center justify-center">
+                    <div class="absolute inset-0 rounded-full border-4 border-indigo-500/20"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-transparent border-t-emerald-400 border-r-indigo-500 loader-ring"></div>
+                    <span class="text-xs font-mono font-bold text-emerald-400">12pt</span>
+                </div>
+                <h3 class="text-base sm:text-lg font-extrabold text-white tracking-tight mb-1">Preparing Point Geometry...</h3>
+                <p id="loadingSubtext" class="text-xs text-slate-400">Calculating valid intersections &amp; board topology</p>
+            </div>
+
             <!-- PRE-GAME LOBBY OVERLAY (Requires Manual 'Play' Press) -->
-            <div id="startLobbyOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-25 flex flex-col items-center justify-center p-3 sm:p-6 text-center overflow-y-auto">
-                <div class="bg-slate-900/95 border border-slate-800 rounded-2xl max-w-md w-full p-4 sm:p-5 shadow-2xl my-auto">
-                    <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-1.5">
+            <div id="startLobbyOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md z-25 flex flex-col items-center justify-center p-2.5 sm:p-5 text-center overflow-y-auto">
+                <div class="bg-slate-900/95 border border-slate-800 rounded-2xl max-w-md w-full p-3.5 sm:p-5 shadow-2xl my-auto">
+                    <div class="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-xs font-semibold mb-1">
                         <span>Strategic Geometry Duel</span>
                     </div>
-                    <h1 class="text-xl sm:text-3xl font-extrabold text-white tracking-tight mb-1">line.line</h1>
-                    <p class="text-xs sm:text-sm text-slate-400 mb-3.5">
-                        Choose your game mode, customize player names &amp; line colors, and press <strong class="text-white">Play Game</strong> to begin.
+                    <h1 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight mb-0.5">line.line</h1>
+                    <p class="text-xs text-slate-400 mb-3">
+                        Choose your game mode, customize players, or upload a saved dots file to replay a board setup.
                     </p>
 
                     <!-- Game Mode Selector: 1v1 PvP vs 1v1 Player vs Bot -->
-                    <div class="mb-3.5">
-                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Game Mode</div>
+                    <div class="mb-3">
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Game Mode</div>
                         <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
                             <button id="modePvPBtn" type="button" onclick="setGameMode('PVP')"
-                                    class="py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition bg-indigo-600 text-white shadow flex items-center justify-center gap-1.5">
+                                    class="py-1.5 sm:py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition bg-indigo-600 text-white shadow flex items-center justify-center gap-1.5">
                                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
                                 <span>1v1 (Player vs Player)</span>
                             </button>
                             <button id="modePvBBtn" type="button" onclick="setGameMode('PVB')"
-                                    class="py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white flex items-center justify-center gap-1.5">
+                                    class="py-1.5 sm:py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white flex items-center justify-center gap-1.5">
                                 <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
                                 </svg>
@@ -238,7 +279,7 @@
                         </div>
 
                         <!-- Turn Order Sub-Selector when Player vs Bot is active -->
-                        <div id="botOrderRow" class="hidden mt-2 bg-slate-950/90 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center justify-between text-xs">
+                        <div id="botOrderRow" class="hidden mt-1.5 bg-slate-950/90 border border-slate-800/80 rounded-xl px-3 py-1.5 flex items-center justify-between text-xs">
                             <span class="text-slate-400 font-medium">Turn Order:</span>
                             <div class="inline-flex gap-1">
                                 <button id="humanFirstBtn" type="button" onclick="setBotPlayerSlot(2)"
@@ -253,16 +294,38 @@
                         </div>
                     </div>
 
+                    <!-- Dots Position Setup (Random vs Upload Dots Position File) -->
+                    <div class="mb-3 text-left">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Board Dots Setup</span>
+                            <span id="uploadedFileStatusBadge" class="text-[10px] font-mono font-semibold text-slate-400">Random 12 Dots</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" onclick="triggerDotsFileUpload()"
+                                    class="flex-1 py-2 px-3 rounded-xl bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500/60 text-xs font-semibold text-slate-200 flex items-center justify-center gap-2 transition">
+                                <svg class="w-4 h-4 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                </svg>
+                                <span id="uploadBtnLabel">Upload Dots Position File (.json)</span>
+                            </button>
+                            <button id="clearUploadedDotsBtn" type="button" onclick="clearUploadedDotsSetup()"
+                                    class="hidden shrink-0 px-2.5 py-2 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-700/60 text-rose-200 text-xs font-bold transition"
+                                    title="Clear uploaded file and use random point generation">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Quick Player Customization Preview Buttons -->
-                    <div class="grid grid-cols-2 gap-2 mb-3.5">
-                        <button onclick="openPlayerModal(1)" class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition text-left">
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                        <button onclick="openPlayerModal(1)" class="flex items-center justify-between p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition text-left">
                             <div class="flex items-center gap-2 min-w-0">
                                 <span id="lobbyP1Dot" class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color: #2563eb;"></span>
                                 <span id="lobbyP1Name" class="text-xs sm:text-sm font-bold text-white truncate">Player 1</span>
                             </div>
                             <span class="text-[10px] text-slate-400 font-medium shrink-0 ml-1">Edit</span>
                         </button>
-                        <button onclick="openPlayerModal(2)" class="flex items-center justify-between p-2 sm:p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition text-left">
+                        <button onclick="openPlayerModal(2)" class="flex items-center justify-between p-2 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 transition text-left">
                             <div class="flex items-center gap-2 min-w-0">
                                 <span id="lobbyP2Dot" class="w-3.5 h-3.5 rounded-full shrink-0" style="background-color: #e11d48;"></span>
                                 <span id="lobbyP2Name" class="text-xs sm:text-sm font-bold text-white truncate">Player 2</span>
@@ -272,27 +335,27 @@
                     </div>
 
                     <!-- Per-Turn Timer Selector inside Lobby -->
-                    <div class="mb-4">
-                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Turn Timer (Switches Turn on Timeout)</div>
+                    <div class="mb-3.5">
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1">Turn Timer (Switches Turn on Timeout)</div>
                         <div class="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
                             <button id="lobbyTime30Btn" type="button" onclick="setTurnDuration(30)"
-                                    class="py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition bg-indigo-600 text-white shadow">
+                                    class="py-1.5 sm:py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition bg-indigo-600 text-white shadow">
                                 ⏱ 30s / turn
                             </button>
                             <button id="lobbyTime60Btn" type="button" onclick="setTurnDuration(60)"
-                                    class="py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white">
+                                    class="py-1.5 sm:py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition text-slate-400 hover:text-white">
                                 ⏱ 1 min / turn
                             </button>
                         </div>
                     </div>
 
                     <!-- Start Game Primary CTA -->
-                    <button onclick="startNewPlaySession()"
-                            class="w-full py-3 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm sm:text-base shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition transform active:scale-95">
+                    <button onclick="startNewPlaySession(false)"
+                            class="w-full py-2.5 sm:py-3 px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-sm sm:text-base shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition transform active:scale-95">
                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M8 5v14l11-7z"/>
                         </svg>
-                        <span>Play Game</span>
+                        <span id="lobbyPlayBtnText">Play Game</span>
                     </button>
                 </div>
             </div>
@@ -311,11 +374,82 @@
         </div>
     </main>
 
+    <!-- TURN-BY-TURN REPLAY & MOVE ANALYSIS PANEL (Visible when gameState === 'REPLAY') -->
+    <section id="replayAnalysisPanel" class="hidden w-full max-w-6xl mx-auto px-2 sm:px-5 pt-1 pb-1 shrink-0">
+        <div class="bg-slate-900/95 border border-indigo-500/40 rounded-xl sm:rounded-2xl p-2 sm:p-3 shadow-2xl flex flex-col gap-2">
+            <!-- Top Row: Step Navigation + Move Strip + Exit Replay -->
+            <div class="flex flex-wrap items-center justify-between gap-1.5 sm:gap-2">
+                <!-- Transport Buttons -->
+                <div class="flex items-center gap-1">
+                    <button type="button" onclick="setReplayStep(0)"
+                            class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
+                            title="Jump to Initial Board Setup (Step 0)">
+                        ⏮
+                    </button>
+                    <button type="button" onclick="stepReplayBy(-1)"
+                            class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
+                            title="Previous Turn (Left Arrow)">
+                        ◀ Prev
+                    </button>
+                    <button id="replayAutoBtn" type="button" onclick="toggleReplayAutoPlay()"
+                            class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition flex items-center gap-1"
+                            title="Auto-Play Turn by Turn">
+                        <span id="replayAutoBtnText">▶ Auto</span>
+                    </button>
+                    <button type="button" onclick="stepReplayBy(1)"
+                            class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
+                            title="Next Turn (Right Arrow)">
+                        Next ▶
+                    </button>
+                    <button type="button" onclick="setReplayStep(moveHistory.length)"
+                            class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition"
+                            title="Jump to Final Move">
+                        ⏭
+                    </button>
+                </div>
+
+                <!-- Scrollable Turn Pills Strip -->
+                <div id="replayTimelineStrip" class="thin-scroll flex-1 flex items-center gap-1 overflow-x-auto py-0.5 px-1 min-w-[140px]">
+                    <!-- Populated dynamically via JS -->
+                </div>
+
+                <!-- Right Actions: Summary Modal / Play Again -->
+                <div class="flex items-center gap-1.5">
+                    <button type="button" onclick="openGameOverModalFromReplay()"
+                            class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition">
+                        Scoreboard
+                    </button>
+                </div>
+            </div>
+
+            <!-- Bottom Row: Turn Move Header, Quality Badge, Win Prob Delta & Detailed "Why" Commentary -->
+            <div class="bg-slate-950/90 border border-slate-800/90 rounded-xl p-2 sm:p-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div class="space-y-1 min-w-0 flex-1">
+                    <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <span id="replayTurnTitle" class="text-xs sm:text-sm font-extrabold text-white">Start of Game</span>
+                        <span id="replayQualityBadge" class="px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300">
+                            Initial Setup
+                        </span>
+                        <span id="replayWinProbDelta" class="text-[11px] font-mono font-bold text-slate-400"></span>
+                    </div>
+                    <p id="replayWhyDescription" class="text-xs sm:text-[13px] text-slate-300 leading-snug">
+                        Use the Next/Prev buttons or arrow keys to step through every line drawn and inspect how good each move was and why.
+                    </p>
+                </div>
+                <!-- Legend for Best Alternative Line when shown -->
+                <div id="replayBestLineHint" class="hidden shrink-0 px-2.5 py-1.5 rounded-lg bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 text-[11px] font-mono font-semibold flex items-center gap-1.5">
+                    <span class="inline-block w-3.5 h-0.5 border-b-2 border-dashed border-emerald-400"></span>
+                    <span id="replayBestLineText">Best: #1–#2</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- BOTTOM CONTROL BAR -->
     <footer class="w-full max-w-6xl mx-auto px-2 sm:px-5 pt-1 pb-2 sm:pb-3 shrink-0">
         <div class="bg-slate-900/90 border border-slate-800/90 rounded-xl sm:rounded-2xl px-2.5 py-1.5 sm:px-3 sm:py-2 flex items-center justify-between gap-1.5 sm:gap-2">
             
-            <!-- Left Controls: Helper Lines Toggle + Rules -->
+            <!-- Left Controls: Helper Lines Toggle + Save Dots + Replay Analysis + Rules -->
             <div class="flex items-center gap-1.5 sm:gap-2">
                 <button id="validlineButton" onclick="toggleHelperLines()"
                         class="fluid-btn inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-semibold border transition-all active:scale-95 bg-slate-800/90 hover:bg-slate-800 text-slate-200 border-slate-700">
@@ -324,11 +458,29 @@
                     <span id="helperCountBadge" class="px-1.5 py-0.5 text-[10px] sm:text-[11px] rounded bg-slate-950 text-slate-300 font-mono">OFF</span>
                 </button>
 
+                <button id="footerSaveDotsBtn" onclick="downloadDotsPositionFile()"
+                        class="hidden fluid-btn items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-medium bg-slate-800/70 hover:bg-slate-800 text-indigo-300 border border-slate-700/80 transition active:scale-95"
+                        title="Download current 12 dots position file (.json)">
+                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    <span class="hidden sm:inline">Download Dots</span>
+                </button>
+
+                <button id="footerReplayBtn" onclick="enterReplayMode()"
+                        class="hidden fluid-btn items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 transition active:scale-95"
+                        title="Open Turn-by-Turn Replay & Move Analysis">
+                    <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Replay Analysis</span>
+                </button>
+
                 <button onclick="openRulesModal()" class="fluid-btn inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-medium bg-slate-800/60 hover:bg-slate-800 text-slate-300 border border-slate-800 transition active:scale-95" title="Game Rules">
                     <svg class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <span class="hidden xs:inline sm:inline">Rules</span>
+                    <span class="hidden md:inline">Rules</span>
                 </button>
             </div>
 
@@ -430,10 +582,10 @@
                 </svg>
             </div>
             <h2 id="gameOverTitle" class="text-xl sm:text-2xl font-extrabold text-white mb-1">Game Over</h2>
-            <p id="gameOverSubtitle" class="text-xs sm:text-sm text-slate-300 mb-4 sm:mb-5">All 3 rounds completed!</p>
+            <p id="gameOverSubtitle" class="text-xs sm:text-sm text-slate-300 mb-3">All 3 rounds completed!</p>
 
             <!-- Final Scoreboard -->
-            <div class="grid grid-cols-2 gap-2.5 sm:gap-3 mb-5 sm:mb-6">
+            <div class="grid grid-cols-2 gap-2.5 sm:gap-3 mb-3.5">
                 <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 sm:p-3">
                     <div class="flex items-center justify-center gap-1.5 mb-1">
                         <span id="goP1Dot" class="w-2.5 h-2.5 rounded-full"></span>
@@ -441,6 +593,7 @@
                     </div>
                     <div id="goP1Score" class="text-xl sm:text-2xl font-extrabold text-white">0</div>
                     <div id="goP1Lines" class="text-[11px] text-slate-400 mt-0.5">0 lines drawn</div>
+                    <div id="goP1Accuracy" class="text-[10px] font-mono text-emerald-400 mt-0.5">0 Best Moves</div>
                 </div>
                 <div class="bg-slate-950 border border-slate-800 rounded-xl p-2.5 sm:p-3">
                     <div class="flex items-center justify-center gap-1.5 mb-1">
@@ -449,15 +602,41 @@
                     </div>
                     <div id="goP2Score" class="text-xl sm:text-2xl font-extrabold text-white">0</div>
                     <div id="goP2Lines" class="text-[11px] text-slate-400 mt-0.5">0 lines drawn</div>
+                    <div id="goP2Accuracy" class="text-[10px] font-mono text-emerald-400 mt-0.5">0 Best Moves</div>
                 </div>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 justify-center">
-                <button onclick="closeGameOverModal()" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
-                    Inspect Board
+            <!-- Primary CTA: Watch Turn-by-Turn Replay & Move Analysis -->
+            <button type="button" onclick="enterReplayMode()"
+                    class="w-full py-2.5 px-4 mb-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs sm:text-sm shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 transition transform active:scale-95">
+                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Watch Turn-by-Turn Replay &amp; Move Analysis</span>
+            </button>
+
+            <!-- Download Dots Position File Bar inside Game Over Modal -->
+            <div class="bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 mb-4 flex items-center justify-between gap-2">
+                <div class="text-left min-w-0">
+                    <div class="text-[11px] font-bold text-slate-200">Save This Point Setup</div>
+                    <div class="text-[10px] text-slate-400">Download the 12 dots to replay or share</div>
+                </div>
+                <button type="button" onclick="downloadDotsPositionFile()"
+                        class="shrink-0 px-3 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/40 text-xs font-bold text-indigo-300 flex items-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    <span>Download Dots</span>
                 </button>
-                <button onclick="startNewPlaySession()" class="px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg transition">
-                    Play Again
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2 justify-center">
+                <button onclick=" replayCurrentDotsSetup()" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg transition">
+                    Replay Same Dots
+                </button>
+                <button onclick="startNewPlaySession(true)" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg transition">
+                    New Random Dots
                 </button>
             </div>
         </div>
@@ -483,8 +662,8 @@
                 </div>
                 <ul class="list-disc list-inside space-y-1 text-slate-400">
                     <li><strong>Round Winner Keeps Initiative:</strong> If you draw the final valid line in Round 1 or Round 2, you earn the round point(s) and immediately make the opening move of the next round.</li>
-                    <li><strong>Per-Turn Timer:</strong> Choose <strong>30s</strong> or <strong>1m</strong> per turn. If your turn timer hits 0:00, your turn switches to the other player without ending the game!</li>
-                    <li><strong>Customization:</strong> Tap either player's card at the top to change their name and line color at any time.</li>
+                    <li><strong>Turn-by-Turn Replay &amp; Move Analysis:</strong> After any game, click <strong>Watch Replay &amp; Move Analysis</strong> to step through every move, see its rating (Best, Good, Inaccuracy, Blunder), and view the engine's recommended line.</li>
+                    <li><strong>Download &amp; Upload Dots File:</strong> Export a `.json` file of the 12 points anytime and upload it in the lobby to replay that exact board setup.</li>
                 </ul>
             </div>
             <div class="mt-4 sm:mt-5 text-right">
@@ -504,11 +683,16 @@
 
         // Exact constants from original point generation rules
         const minDistance = 100;
+        const minDistanceSq = minDistance * minDistance; // 10,000 (avoids Math.sqrt on failed checks)
         const pointCount = 12;
+
+        // Precomputed cosine thresholds for exact angle filter: (angle >= 160 || angle <= 8)
+        const COS_160_DEG = Math.cos(160 * (Math.PI / 180));
+        const COS_8_DEG   = Math.cos(8 * (Math.PI / 180));
 
         // Logical coordinate space (keeps exact A4-like proportion & point density across devices)
         let logicalWidth = 1100;
-        let logicalHeight = 780; // 1100 / 1.41 ≈ 780
+        let logicalHeight = 780;
         let displayScale = 1;
 
         // Curated modern color palette for player customization
@@ -541,23 +725,26 @@
             }
         };
 
-        // Game lifecycle state: 'WAITING' (Lobby before pressing Play), 'PLAYING', 'GAMEOVER'
+        // Game lifecycle state: 'WAITING', 'LOADING', 'PLAYING', 'GAMEOVER', 'REPLAY'
         let gameState = "WAITING";
+
+        // Uploaded / Custom Dots Position Setup (null = generate random points)
+        let customUploadedDots = null;
 
         // Game mode state: 'PVP' (Player vs Player) or 'PVB' (Player vs Bot)
         let gameMode = "PVP";
-        let botPlayerId = 2; // Which player slot (1 or 2) is controlled by the AI Bot in PVB mode
+        let botPlayerId = 2;
         let savedHumanNames = { 1: "Player 1", 2: "Player 2" };
         let isBotThinking = false;
-        let botAnimState = null; // { p1, p2, progress }
+        let botAnimState = null;
         let botTurnTimeoutId = null;
 
         // Precomputed 66-segment topology & Zobrist hashing tables for fast AI search
-        let allSegments = [];        // Array of 66 { id, i, j, p1, p2 }
-        let segCrossMatrix = [];     // segCrossMatrix[s1] = BigInt bitmask of segments strictly crossing s1
-        let segCrossList = [];       // segCrossList[s1] = Array of segment indices strictly crossing s1
-        let zobristSegKeys = [];     // BigInt random keys per segment
-        let zobristRoundKeys = [];   // BigInt random keys per round
+        let allSegments = [];
+        let segCrossMatrix = [];
+        let segCrossList = [];
+        let zobristSegKeys = [];
+        let zobristRoundKeys = [];
         let zobristTurnKey = 0n;
 
         // Live Win Probability Percentage for Player 1 (0..100)
@@ -569,8 +756,14 @@
         let existingLines = []; // Array of { p1, p2, owner: 0 | 1 | 2 }
         let previewLines = [];  // Cached valid lines for the current board state
         let round = 1;
-        let currentTurn = 1;    // 1 for Player 1, 2 for Player 2
+        let currentTurn = 1;
         let showHelperLines = false;
+
+        // Turn-by-Turn Replay & Move Analysis State
+        let moveHistory = []; // Array of recorded turn objects with full evaluation & why description
+        let initialP1WinProb = 50;
+        let replayStep = 0;   // 0 = initial board setup, 1..moveHistory.length = after Turn #k
+        let replayAutoInterval = null;
 
         // Interactive pointer/touch selection state
         let firstSelectedPoint = null;
@@ -590,38 +783,152 @@
         let toastTimeout = null;
 
         // =========================================================================
-        // 2. EXACT MATHEMATICAL & POINT GENERATION FUNCTIONS
+        // 1B. DOWNLOAD & UPLOAD DOTS POSITION FILE (.JSON)
+        // =========================================================================
+
+        function downloadDotsPositionFile() {
+            if (!points || points.length < pointCount) {
+                showToast("Start a game first to download its dots position file!", "error");
+                return;
+            }
+
+            const isCurrentlyPortrait = logicalHeight > logicalWidth;
+            const exportPoints = points.map((p, idx) => ({
+                id: idx + 1,
+                x: Math.round(isCurrentlyPortrait ? p.y : p.x),
+                y: Math.round(isCurrentlyPortrait ? p.x : p.y)
+            }));
+
+            const payload = {
+                game: "line.line",
+                version: 1,
+                pointCount: exportPoints.length,
+                canonicalWidth: 1100,
+                canonicalHeight: 780,
+                createdAt: new Date().toISOString(),
+                points: exportPoints
+            };
+
+            const jsonString = JSON.stringify(payload, null, 2);
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `line-line-dots-${stamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast("Downloaded dots position file (.json)!", "success");
+        }
+
+        function triggerDotsFileUpload() {
+            const fileInput = document.getElementById("dotsFileInput");
+            if (fileInput) {
+                fileInput.value = "";
+                fileInput.click();
+            }
+        }
+
+        function handleDotsFileSelected(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const rawPts = Array.isArray(data) ? data : data.points;
+
+                    if (!Array.isArray(rawPts) || rawPts.length !== pointCount) {
+                        showToast(`Invalid file: must contain exactly ${pointCount} points.`, "error");
+                        return;
+                    }
+
+                    const cleanedPts = [];
+                    for (let i = 0; i < rawPts.length; i++) {
+                        const px = Number(rawPts[i].x);
+                        const py = Number(rawPts[i].y);
+                        if (!Number.isFinite(px) || !Number.isFinite(py)) {
+                            showToast("Invalid coordinates inside dots file.", "error");
+                            return;
+                        }
+                        cleanedPts.push({ x: px, y: py });
+                    }
+
+                    const srcW = Number(data.canonicalWidth || data.logicalWidth) || 1100;
+                    const srcH = Number(data.canonicalHeight || data.logicalHeight) || 780;
+
+                    customUploadedDots = {
+                        filename: file.name,
+                        srcW,
+                        srcH,
+                        points: cleanedPts
+                    };
+
+                    updateUploadedDotsUI();
+                    showToast(`Loaded "${file.name}"! Press Play Game to start.`, "success");
+                } catch (err) {
+                    showToast("Could not parse JSON dots file.", "error");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function clearUploadedDotsSetup() {
+            customUploadedDots = null;
+            updateUploadedDotsUI();
+            showToast("Cleared custom file. Using random point generation.", "success");
+        }
+
+        function updateUploadedDotsUI() {
+            const badge = document.getElementById("uploadedFileStatusBadge");
+            const label = document.getElementById("uploadBtnLabel");
+            const clearBtn = document.getElementById("clearUploadedDotsBtn");
+            const playBtnText = document.getElementById("lobbyPlayBtnText");
+
+            if (customUploadedDots) {
+                badge.textContent = `Custom File (${pointCount} pts)`;
+                badge.className = "text-[10px] font-mono font-bold text-emerald-400";
+                label.textContent = customUploadedDots.filename;
+                clearBtn.classList.remove("hidden");
+                playBtnText.textContent = "Play Custom Dots";
+            } else {
+                badge.textContent = "Random 12 Dots";
+                badge.className = "text-[10px] font-mono font-semibold text-slate-400";
+                label.textContent = "Upload Dots Position File (.json)";
+                clearBtn.classList.add("hidden");
+                playBtnText.textContent = "Play Game";
+            }
+        }
+
+        function replayCurrentDotsSetup() {
+            stopReplayAutoPlay();
+            if (points && points.length === pointCount) {
+                const isCurrentlyPortrait = logicalHeight > logicalWidth;
+                customUploadedDots = {
+                    filename: "Current Board Replay",
+                    srcW: 1100,
+                    srcH: 780,
+                    points: points.map(p => ({
+                        x: isCurrentlyPortrait ? p.y : p.x,
+                        y: isCurrentlyPortrait ? p.x : p.y
+                    }))
+                };
+                updateUploadedDotsUI();
+            }
+            startNewPlaySession(false);
+        }
+
+        // =========================================================================
+        // 2. HIGH-EFFICIENCY MATHEMATICAL & POINT GENERATION ENGINE
         // =========================================================================
 
         function distance(p1, p2) {
             return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
-        }
-
-        function angleBetweenVectors(A, B, C) {
-            let ABx = B.x - A.x, ABy = B.y - A.y;
-            let BCx = C.x - B.x, BCy = C.y - B.y;
-            let dotProduct = ABx * BCx + ABy * BCy;
-            let magAB = Math.sqrt(ABx * ABx + ABy * ABy);
-            let magBC = Math.sqrt(BCx * BCx + BCy * BCy);
-            if (magAB === 0 || magBC === 0) return 0;
-            let cosTheta = Math.max(-1, Math.min(1, dotProduct / (magAB * magBC)));
-            return Math.acos(cosTheta) * (180 / Math.PI);
-        }
-
-        function isValidPoint(newPoint) {
-            for (let p of tempPoints) {
-                if (distance(newPoint, p) < minDistance) return false;
-            }
-            for (let i = 0; i < tempPoints.length - 1; i++) {
-                for (let j = i + 1; j < tempPoints.length; j++) {
-                    let A = tempPoints[i], B = tempPoints[j], C = newPoint;
-                    let angle = angleBetweenVectors(A, B, C);
-                    if (angle >= 160 || angle <= 8) {
-                        return false;
-                    }
-                }
-            }
-            return true;
         }
 
         function distanceFromCenter(p) {
@@ -637,40 +944,111 @@
             return (ccw(A, C, D) !== ccw(B, C, D)) && (ccw(A, B, C) !== ccw(A, B, D));
         }
 
-        /**
-         * Generates 12 valid points following the exact original rules,
-         * connects the 2 points closest to the center, and ensures at least 1 valid move exists.
-         */
         function generatePoints() {
             const isPortrait = window.innerHeight > window.innerWidth;
             logicalWidth = isPortrait ? 780 : 1100;
             logicalHeight = isPortrait ? 1100 : 780;
 
+            if (customUploadedDots && Array.isArray(customUploadedDots.points) && customUploadedDots.points.length === pointCount) {
+                const srcIsPortrait = customUploadedDots.srcH > customUploadedDots.srcW;
+                points = customUploadedDots.points.map(pt => {
+                    if (isPortrait !== srcIsPortrait) {
+                        return { x: pt.y, y: pt.x };
+                    }
+                    return { x: pt.x, y: pt.y };
+                });
+
+                points.sort((a, b) => distanceFromCenter(a) - distanceFromCenter(b));
+                points.forEach((p, idx) => p.id = idx + 1);
+
+                existingLines = [{
+                    p1: points[0],
+                    p2: points[1],
+                    owner: 0
+                }];
+                round = 1;
+                recalculateValidLines();
+                buildSegmentTopology();
+                updateWinProbability();
+                initialP1WinProb = p1WinProbability;
+                return;
+            }
+
+            const spanW = logicalWidth - 40;
+            const spanH = logicalHeight - 40;
             let validBoardGenerated = false;
             let safetyCounter = 0;
 
-            while (!validBoardGenerated && safetyCounter < 50) {
+            const candUx = new Float64Array(pointCount);
+            const candUy = new Float64Array(pointCount);
+
+            while (!validBoardGenerated && safetyCounter < 80) {
                 safetyCounter++;
                 tempPoints = [];
-                let attempts = 0;
+                const unitVecs = [];
+                let attemptsForCurrentPoint = 0;
 
                 while (tempPoints.length < pointCount) {
-                    let newPoint = {
-                        x: Math.floor(Math.random() * (logicalWidth - 40)) + 20,
-                        y: Math.floor(Math.random() * (logicalHeight - 40)) + 20
-                    };
-                    if (isValidPoint(newPoint)) {
-                        tempPoints.push(newPoint);
+                    const cx = Math.floor(Math.random() * spanW) + 20;
+                    const cy = Math.floor(Math.random() * spanH) + 20;
+                    const n = tempPoints.length;
+
+                    let valid = true;
+
+                    for (let j = 0; j < n; j++) {
+                        const B = tempPoints[j];
+                        const dx = cx - B.x;
+                        const dy = cy - B.y;
+                        const dSq = dx * dx + dy * dy;
+                        if (dSq < minDistanceSq) {
+                            valid = false;
+                            break;
+                        }
+                        const invMag = 1.0 / Math.sqrt(dSq);
+                        candUx[j] = dx * invMag;
+                        candUy[j] = dy * invMag;
                     }
-                    attempts++;
-                    if (attempts > 1000) {
-                        tempPoints = [];
-                        attempts = 0;
+
+                    if (valid && n >= 2) {
+                        for (let j = 1; j < n; j++) {
+                            const vx = candUx[j];
+                            const vy = candUy[j];
+                            const uList = unitVecs[j];
+                            for (let i = 0; i < j; i++) {
+                                const u = uList[i];
+                                const cosTheta = u.ux * vx + u.uy * vy;
+                                if (cosTheta <= COS_160_DEG || cosTheta >= COS_8_DEG) {
+                                    valid = false;
+                                    break;
+                                }
+                            }
+                            if (!valid) break;
+                        }
+                    }
+
+                    if (valid) {
+                        const newPt = { x: cx, y: cy };
+                        const newUList = [];
+                        for (let i = 0; i < n; i++) {
+                            newUList.push({
+                                ux: candUx[i],
+                                uy: candUy[i]
+                            });
+                        }
+                        unitVecs.push(newUList);
+                        tempPoints.push(newPt);
+                        attemptsForCurrentPoint = 0;
+                    } else {
+                        attemptsForCurrentPoint++;
+                        if (attemptsForCurrentPoint > 220) {
+                            tempPoints = [];
+                            unitVecs.length = 0;
+                            attemptsForCurrentPoint = 0;
+                        }
                     }
                 }
 
                 points = [...tempPoints];
-                // Connect the 2 points closest to the center as the initial line
                 points.sort((a, b) => distanceFromCenter(a) - distanceFromCenter(b));
                 points.forEach((p, idx) => p.id = idx + 1);
 
@@ -679,7 +1057,7 @@
                     existingLines.push({
                         p1: points[0],
                         p2: points[1],
-                        owner: 0 // 0 = initial neutral center line (counted in all Bot & WinProb bitmasks)
+                        owner: 0
                     });
                 }
 
@@ -689,15 +1067,11 @@
                 }
             }
 
-            // Build the 66-segment topology & Zobrist tables for instantaneous AI lookahead
             buildSegmentTopology();
             updateWinProbability();
+            initialP1WinProb = p1WinProbability;
         }
 
-        /**
-         * Precomputes all 66 possible segments between the 12 points and their mutual
-         * strict geometric intersections so the AI Bot can simulate moves in O(1) bitmask operations.
-         */
         function buildSegmentTopology() {
             allSegments = [];
             let idx = 0;
@@ -713,7 +1087,7 @@
                 }
             }
 
-            const S = allSegments.length; // 66
+            const S = allSegments.length;
             segCrossMatrix = new Array(S).fill(0n);
             segCrossList = Array.from({ length: S }, () => []);
 
@@ -753,10 +1127,6 @@
             return -1;
         }
 
-        /**
-         * Encodes the current board's `existingLines` (including the pre-existing neutral line at index 0)
-         * into a 66-bit BigInt mask and Zobrist hash.
-         */
         function getCurrentBoardMaskAndHash() {
             let mask = 0n;
             let hash = zobristRoundKeys[round] || 0n;
@@ -793,9 +1163,6 @@
             return intersectionCount;
         }
 
-        /**
-         * Recalculates previewLines only when a move is committed or round changes.
-         */
         function recalculateValidLines() {
             previewLines = [];
             for (let i = 0; i < points.length; i++) {
@@ -816,7 +1183,7 @@
         }
 
         // =========================================================================
-        // 4. RESPONSIVE HIGH-DPI CANVAS SIZING & RENDERING
+        // 4. RESPONSIVE HIGH-DPI CANVAS SIZING & RENDERING (WITH REPLAY OVERLAYS)
         // =========================================================================
 
         function resizeCanvasToContainer() {
@@ -825,16 +1192,16 @@
             if (!container || !wrapper) return;
 
             const availW = Math.max(200, container.clientWidth - 12);
-            const availH = Math.max(200, container.clientHeight - 6);
+            const availH = Math.max(160, container.clientHeight - 6);
 
             const wantPortrait = availH > availW;
             const isCurrentlyPortrait = logicalHeight > logicalWidth;
 
             if (wantPortrait !== isCurrentlyPortrait) {
-                if (gameState === "WAITING") {
+                if (gameState === "WAITING" || gameState === "LOADING") {
                     logicalWidth = wantPortrait ? 780 : 1100;
                     logicalHeight = wantPortrait ? 1100 : 780;
-                } else if (existingLines.length <= 1) {
+                } else if (existingLines.length <= 1 && gameState === "PLAYING") {
                     const oldW = logicalWidth;
                     logicalWidth = logicalHeight;
                     logicalHeight = oldW;
@@ -848,7 +1215,7 @@
 
             const scaleX = availW / logicalWidth;
             const scaleY = availH / logicalHeight;
-            displayScale = Math.max(0.18, Math.min(scaleX, scaleY));
+            displayScale = Math.max(0.16, Math.min(scaleX, scaleY));
 
             const cssWidth = Math.floor(logicalWidth * displayScale);
             const cssHeight = Math.floor(logicalHeight * displayScale);
@@ -869,7 +1236,7 @@
         function renderBoard() {
             ctx.clearRect(0, 0, logicalWidth, logicalHeight);
 
-            if (gameState === "WAITING") {
+            if (gameState === "WAITING" || gameState === "LOADING") {
                 const cx = logicalWidth / 2;
                 const cy = logicalHeight / 2;
                 const r = Math.min(logicalWidth, logicalHeight) * 0.28;
@@ -884,14 +1251,22 @@
                 return;
             }
 
+            const isReplay = (gameState === "REPLAY");
+            // In REPLAY mode, only draw lines up to `replayStep` (existingLines[0] is the initial line, existingLines[1..k] are Moves 1..k)
+            const maxLineIdxToDraw = isReplay ? Math.min(existingLines.length - 1, replayStep) : existingLines.length - 1;
+            const activeReplayMove = (isReplay && replayStep >= 1 && replayStep <= moveHistory.length)
+                ? moveHistory[replayStep - 1]
+                : null;
+
             // 1. Draw helper valid lines (if toggled on)
-            if (showHelperLines && gameState === "PLAYING") {
+            if (showHelperLines && (gameState === "PLAYING" || isReplay)) {
                 ctx.save();
                 ctx.strokeStyle = "#f59e0b";
-                ctx.globalAlpha = 0.38;
+                ctx.globalAlpha = 0.35;
                 ctx.lineWidth = 2.4;
                 ctx.setLineDash([7, 7]);
-                for (let line of previewLines) {
+                const linesToPreview = isReplay ? getReplayPreviewLinesAtStep(replayStep) : previewLines;
+                for (let line of linesToPreview) {
                     ctx.beginPath();
                     ctx.moveTo(line[0].x, line[0].y);
                     ctx.lineTo(line[1].x, line[1].y);
@@ -900,36 +1275,100 @@
                 ctx.restore();
             }
 
-            // 2. Draw all existing permanent lines (colored by owner)
-            for (let i = 0; i < existingLines.length; i++) {
+            // 2. Draw permanent lines up to maxLineIdxToDraw
+            for (let i = 0; i <= maxLineIdxToDraw; i++) {
                 const line = existingLines[i];
+                if (!line) continue;
                 ctx.save();
                 ctx.beginPath();
                 ctx.moveTo(line.p1.x, line.p1.y);
                 ctx.lineTo(line.p2.x, line.p2.y);
 
                 if (line.owner === 0) {
-                    // Initial neutral center line
                     ctx.strokeStyle = "#5e81ac";
                     ctx.lineWidth = 3.8;
                 } else {
                     ctx.strokeStyle = players[line.owner].color;
-                    ctx.lineWidth = 4.5;
+                    ctx.lineWidth = (isReplay && i === maxLineIdxToDraw) ? 5.5 : 4.2;
                 }
                 ctx.lineCap = "round";
                 ctx.stroke();
 
-                // Subtle highlight on the most recently drawn player line
-                if (i === existingLines.length - 1 && line.owner !== 0) {
+                // Highlight the most recently drawn line at this step
+                if (i === maxLineIdxToDraw && line.owner !== 0) {
                     ctx.strokeStyle = players[line.owner].color;
-                    ctx.globalAlpha = 0.22;
-                    ctx.lineWidth = 12;
+                    ctx.globalAlpha = isReplay ? 0.32 : 0.22;
+                    ctx.lineWidth = isReplay ? 15 : 12;
                     ctx.stroke();
                 }
                 ctx.restore();
             }
 
-            // 3. Draw active interactive preview line when a first point is selected
+            // 2b. In Replay mode, if the player's move at `replayStep` was suboptimal, draw the Engine's Best Alternative Line in dashed emerald
+            if (activeReplayMove && activeReplayMove.bestMove && activeReplayMove.playedSid !== activeReplayMove.bestSid &&
+                (activeReplayMove.classification === "INACCURACY" || activeReplayMove.classification === "BLUNDER")) {
+                const bp1 = activeReplayMove.bestMove[0];
+                const bp2 = activeReplayMove.bestMove[1];
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(bp1.x, bp1.y);
+                ctx.lineTo(bp2.x, bp2.y);
+                ctx.strokeStyle = "#10b981";
+                ctx.lineWidth = 4.2;
+                ctx.setLineDash([10, 7]);
+                ctx.lineCap = "round";
+                ctx.stroke();
+
+                // Midpoint pill for Best Alternative
+                const midX = (bp1.x + bp2.x) / 2;
+                const midY = (bp1.y + bp2.y) / 2;
+                const label = `★ Best: #${bp1.id}–#${bp2.id}`;
+                ctx.setLineDash([]);
+                ctx.font = "bold 13px Inter, sans-serif";
+                const tw = ctx.measureText(label).width;
+                const pw = tw + 16;
+                const ph = 24;
+                ctx.fillStyle = "#065f46";
+                ctx.strokeStyle = "#10b981";
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.roundRect(midX - pw / 2, midY - ph / 2, pw, ph, 7);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#ecfdf5";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(label, midX, midY + 0.5);
+                ctx.restore();
+            }
+
+            // 2c. In Replay mode, draw a turn badge on the midpoint of the line played at `replayStep`
+            if (activeReplayMove) {
+                const mp1 = activeReplayMove.p1;
+                const mp2 = activeReplayMove.p2;
+                const midX = (mp1.x + mp2.x) / 2;
+                const midY = (mp1.y + mp2.y) / 2;
+                const badgeLabel = `M${activeReplayMove.turnNumber} (${activeReplayMove.shortBadge})`;
+
+                ctx.save();
+                ctx.font = "bold 13px Inter, sans-serif";
+                const tw = ctx.measureText(badgeLabel).width;
+                const pw = tw + 16;
+                const ph = 24;
+                ctx.fillStyle = activeReplayMove.badgeColorHex;
+                ctx.beginPath();
+                ctx.roundRect(midX - pw / 2, midY - ph / 2, pw, ph, 7);
+                ctx.fill();
+
+                ctx.fillStyle = "#ffffff";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(badgeLabel, midX, midY + 0.5);
+                ctx.restore();
+            }
+
+            // 3. Draw active interactive preview line when a first point is selected during live play
             if (firstSelectedPoint && gameState === "PLAYING") {
                 const targetX = hoveredPoint && hoveredPoint !== firstSelectedPoint ? hoveredPoint.x : pointerPos.x;
                 const targetY = hoveredPoint && hoveredPoint !== firstSelectedPoint ? hoveredPoint.y : pointerPos.y;
@@ -961,7 +1400,6 @@
                 ctx.lineCap = "round";
                 ctx.stroke();
 
-                // Draw live crossing count pill at midpoint when hovering a target point
                 if (candidateCrossings !== null) {
                     const midX = (firstSelectedPoint.x + targetX) / 2;
                     const midY = (firstSelectedPoint.y + targetY) / 2;
@@ -1011,28 +1449,30 @@
                 ctx.restore();
             }
 
-            // 4. Draw the 12 Points (scaled slightly up when displayScale is small on mobile)
+            // 4. Draw the 12 Points (with point ID numbers shown during Replay or Helper mode)
             const mobileBoost = displayScale < 0.45 ? 1.28 : 1;
             const baseRadius = 11 * mobileBoost;
 
             for (let p of points) {
                 const isBotEndpoint = botAnimState && (p === botAnimState.p1 || (botAnimState.progress > 0.85 && p === botAnimState.p2));
-                const isSelected = (p === firstSelectedPoint) || isBotEndpoint;
+                const isReplayEndpoint = activeReplayMove && (p === activeReplayMove.p1 || p === activeReplayMove.p2);
+                const isSelected = (p === firstSelectedPoint) || isBotEndpoint || isReplayEndpoint;
                 const isHovered = (p === hoveredPoint);
+                const highlightColor = isReplayEndpoint ? players[activeReplayMove.mover].color : players[currentTurn].color;
 
                 ctx.save();
 
                 if (isSelected || isHovered) {
                     ctx.beginPath();
                     ctx.arc(p.x, p.y, (isSelected ? 22 : 18) * mobileBoost, 0, 2 * Math.PI);
-                    ctx.fillStyle = players[currentTurn].color;
+                    ctx.fillStyle = highlightColor;
                     ctx.globalAlpha = isSelected ? 0.28 : 0.18;
                     ctx.fill();
                 }
 
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, isSelected ? baseRadius * 1.2 : baseRadius, 0, 2 * Math.PI);
-                ctx.fillStyle = isSelected ? players[currentTurn].color : "#1e293b";
+                ctx.fillStyle = isSelected ? highlightColor : "#1e293b";
                 ctx.fill();
 
                 ctx.lineWidth = 2.6 * mobileBoost;
@@ -1044,12 +1484,25 @@
                 ctx.fillStyle = "#ffffff";
                 ctx.fill();
 
+                // Draw Point ID badge (#1..#12) in Replay Mode or when Helpers are ON
+                if (isReplay || showHelperLines) {
+                    const idText = `#${p.id}`;
+                    ctx.font = `bold ${Math.round(12 * mobileBoost)}px JetBrains Mono, monospace`;
+                    ctx.fillStyle = "#0f172a";
+                    ctx.strokeStyle = "#f8fafc";
+                    ctx.lineWidth = 3;
+                    ctx.textAlign = "left";
+                    ctx.textBaseline = "bottom";
+                    ctx.strokeText(idText, p.x + 12 * mobileBoost, p.y - 8 * mobileBoost);
+                    ctx.fillText(idText, p.x + 12 * mobileBoost, p.y - 8 * mobileBoost);
+                }
+
                 ctx.restore();
             }
         }
 
         // =========================================================================
-        // 5. GAMEPLAY MOVE VALIDATION, ROUND PROGRESSION & SCORING
+        // 5. GAMEPLAY MOVE VALIDATION, MOVE QUALITY RECORDING & ROUND PROGRESSION
         // =========================================================================
 
         function isBotTurn() {
@@ -1072,11 +1525,6 @@
             triggerBotTurnIfNeeded();
         }
 
-        /**
-         * Preserves `currentTurn` for the player who clinched the previous round,
-         * resets their per-turn countdown clock for the new round, updates live Win Probability,
-         * and triggers the Bot if the round-winner is the Bot.
-         */
         function keepTurnForRoundWinnerAndResetClock() {
             turnTimeRemainingMs = turnDurationSeconds * 1000;
             lastFrameTime = performance.now();
@@ -1111,15 +1559,18 @@
                 return;
             }
 
-            // Valid line! Commit to board with current player's ownership
             const mover = currentTurn;
+            // 1. Evaluate how good this move is BEFORE committing it to `existingLines`
+            const preMoveAnalysis = analyzeMoveBeforeCommit(p1, p2, mover);
+
+            // 2. Commit line to board
             existingLines.push({
                 p1,
                 p2,
                 owner: mover
             });
 
-            // Recalculate remaining valid moves in the current round
+            // 3. Recalculate remaining valid moves in the current round
             const hasMoreMovesInRound = recalculateValidLines();
 
             if (!hasMoreMovesInRound) {
@@ -1127,7 +1578,6 @@
                 players[mover].score += round;
                 const scoredRound = round;
 
-                // Advance round until we find one with valid moves or finish Round 3
                 let foundNextRoundMoves = false;
                 while (round < 3) {
                     round++;
@@ -1139,20 +1589,482 @@
 
                 if (foundNextRoundMoves) {
                     showToast(`${players[mover].name} clinched Round ${scoredRound} (+${scoredRound} pt${scoredRound > 1 ? 's' : ''}) & starts Round ${round}!`, "success");
-                    // Keep `currentTurn = mover` so the round winner starts the next round!
                     keepTurnForRoundWinnerAndResetClock();
                 } else {
-                    // Game Over!
                     endGame();
                 }
             } else {
-                // Normal turn switch + reset per-turn timer for the next player
                 switchTurnAndResetClock();
             }
+
+            // 4. Finalize the move record with post-move scores and updated Win Probability
+            finalizeMoveRecord(preMoveAnalysis);
         }
 
         // =========================================================================
-        // 5B. OPTIMAL AI BOT ENGINE & LIVE WIN PROBABILITY CALCULATOR
+        // 5B. TURN-BY-TURN MOVE QUALITY EVALUATOR & "WHY" EXPLANATION GENERATOR
+        // =========================================================================
+
+        /**
+         * Evaluates all legal moves in the current board position before `(p1, p2)` is committed,
+         * ranks the played move against the engine's best move, and builds a detailed tactical explanation.
+         */
+        function analyzeMoveBeforeCommit(p1, p2, mover) {
+            const turnNumber = moveHistory.length + 1;
+            const beforeRound = round;
+            const p1ScoreBefore = players[1].score;
+            const p2ScoreBefore = players[2].score;
+            const winProbP1Before = p1WinProbability;
+            const moverWinProbBefore = mover === 1 ? winProbP1Before : (100 - winProbP1Before);
+
+            const { mask: beforeMask, hash: beforeHash } = getCurrentBoardMaskAndHash();
+            const validIds = getValidSegmentIdsForState(beforeMask, beforeRound);
+            const playedSid = findSegmentId(p1, p2);
+
+            let validMask = 0n;
+            for (let i = 0; i < validIds.length; i++) {
+                validMask |= (1n << BigInt(validIds[i]));
+            }
+
+            // Fast 4-ply tactical evaluator from `mover`'s perspective for each candidate move
+            function searchMoveValue(drawnMask, zHash, curRound, turnPlayer, p1S, p2S, depth, alpha, beta, curValidIds) {
+                if (depth <= 0 || curValidIds.length === 0) {
+                    return evaluateStateForPlayer(drawnMask, curRound, turnPlayer, p1S, p2S, curValidIds, mover);
+                }
+                const ordered = orderCandidateMoves(curValidIds);
+                const isMax = (turnPlayer === mover);
+                let best = isMax ? -Infinity : Infinity;
+                const limit = Math.min(ordered.length, 9);
+
+                for (let i = 0; i < limit; i++) {
+                    const sim = simulateBitmaskMove(drawnMask, zHash, curRound, turnPlayer, p1S, p2S, ordered[i]);
+                    let val;
+                    if (sim.gameEnded) {
+                        const myFinal = mover === 1 ? sim.nextP1Score : sim.nextP2Score;
+                        const oppFinal = mover === 1 ? sim.nextP2Score : sim.nextP1Score;
+                        val = (myFinal - oppFinal) * 2000;
+                    } else {
+                        val = searchMoveValue(
+                            sim.nextMask,
+                            sim.nextHash,
+                            sim.nextRound,
+                            sim.nextTurnPlayer,
+                            sim.nextP1Score,
+                            sim.nextP2Score,
+                            depth - 1,
+                            alpha,
+                            beta,
+                            sim.nextValidIds
+                        );
+                    }
+                    if (isMax) {
+                        if (val > best) best = val;
+                        if (best > alpha) alpha = best;
+                        if (alpha >= beta) break;
+                    } else {
+                        if (val < best) best = val;
+                        if (best < beta) beta = best;
+                        if (alpha >= beta) break;
+                    }
+                }
+                return best;
+            }
+
+            let bestSid = playedSid;
+            let bestEval = -Infinity;
+            let playedEval = 0;
+            const candidateEvals = [];
+
+            for (let i = 0; i < validIds.length; i++) {
+                const sid = validIds[i];
+                const sim = simulateBitmaskMove(beforeMask, beforeHash, beforeRound, mover, p1ScoreBefore, p2ScoreBefore, sid);
+                let val;
+                if (sim.gameEnded) {
+                    const myFinal = mover === 1 ? sim.nextP1Score : sim.nextP2Score;
+                    const oppFinal = mover === 1 ? sim.nextP2Score : sim.nextP1Score;
+                    val = (myFinal - oppFinal) * 2000 + 250;
+                } else {
+                    val = searchMoveValue(
+                        sim.nextMask,
+                        sim.nextHash,
+                        sim.nextRound,
+                        sim.nextTurnPlayer,
+                        sim.nextP1Score,
+                        sim.nextP2Score,
+                        3,
+                        -Infinity,
+                        Infinity,
+                        sim.nextValidIds
+                    );
+                }
+                candidateEvals.push({ sid, val });
+                if (val > bestEval) {
+                    bestEval = val;
+                    bestSid = sid;
+                }
+                if (sid === playedSid) {
+                    playedEval = val;
+                }
+            }
+
+            candidateEvals.sort((a, b) => b.val - a.val);
+            const moveRank = Math.max(1, candidateEvals.findIndex(x => x.sid === playedSid) + 1);
+
+            // Geometric & parity metrics for the played move
+            const destroyedCount = popcountBigInt(segCrossMatrix[playedSid] & validMask);
+            const afterMask = beforeMask | (1n << BigInt(playedSid));
+            const remainingValidInRound = getValidSegmentIdsForState(afterMask, beforeRound);
+            const remainingValidCount = remainingValidInRound.length;
+            const remainingIndepCount = estimateIndependentMoveCount(remainingValidInRound);
+            const clinchedRound = (remainingValidCount === 0);
+
+            // How many new valid moves in Round (beforeRound + 1) did this line seed?
+            let seededNextRoundMoves = 0;
+            if (beforeRound < 3) {
+                const nextBefore = getValidSegmentIdsForState(beforeMask, beforeRound + 1).length;
+                const nextAfter = getValidSegmentIdsForState(afterMask, beforeRound + 1).length;
+                seededNextRoundMoves = Math.max(0, nextAfter - nextBefore);
+            }
+
+            // Geometric & parity metrics for the engine's Best Move (if different)
+            const bestSeg = allSegments[bestSid] || { p1, p2 };
+            const bestDestroyed = popcountBigInt(segCrossMatrix[bestSid] & validMask);
+            const bestAfterMask = beforeMask | (1n << BigInt(bestSid));
+            const bestRemainingValid = getValidSegmentIdsForState(bestAfterMask, beforeRound);
+            const bestIndepCount = estimateIndependentMoveCount(bestRemainingValid);
+
+            return {
+                turnNumber,
+                mover,
+                p1,
+                p2,
+                playedSid,
+                bestSid,
+                bestMove: [bestSeg.p1, bestSeg.p2],
+                beforeRound,
+                totalLegalMoves: validIds.length,
+                moveRank,
+                playedEval,
+                bestEval,
+                destroyedCount,
+                remainingValidCount,
+                remainingIndepCount,
+                clinchedRound,
+                seededNextRoundMoves,
+                bestDestroyed,
+                bestRemainingValidCount: bestRemainingValid.length,
+                bestIndepCount,
+                moverWinProbBefore,
+                winProbP1Before
+            };
+        }
+
+        /**
+         * Completes the move analysis record after the move is applied and `p1WinProbability` is updated,
+         * assigning the final classification badge and human-readable "Why" explanation.
+         */
+        function finalizeMoveRecord(info) {
+            const winProbP1After = p1WinProbability;
+            const moverWinProbAfter = info.mover === 1 ? winProbP1After : (100 - winProbP1After);
+            const winProbDelta = moverWinProbAfter - info.moverWinProbBefore;
+            const evalDiff = info.bestEval - info.playedEval;
+
+            const moverName = players[info.mover].name;
+            const oppId = info.mover === 1 ? 2 : 1;
+            const oppName = players[oppId].name;
+
+            // Classify move quality
+            let classification = "GOOD";
+            let label = "✓ Good Move";
+            let shortBadge = "✓ Good";
+            let badgeColorHex = "#0284c7"; // Sky Blue
+            let badgeClasses = "bg-sky-500/20 text-sky-300 border border-sky-500/40";
+
+            if (info.totalLegalMoves === 1 || info.playedSid === info.bestSid || (evalDiff <= 35 && winProbDelta >= -2)) {
+                classification = "BEST";
+                label = info.totalLegalMoves === 1 ? "★ Forced / Best" : "★ Best Move";
+                shortBadge = "★ Best";
+                badgeColorHex = "#059669"; // Emerald
+                badgeClasses = "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40";
+            } else if (evalDiff >= 420 || winProbDelta <= -16 || (info.remainingValidCount === 1 && info.bestRemainingValidCount !== 1)) {
+                classification = "BLUNDER";
+                label = "?? Blunder";
+                shortBadge = "?? Blunder";
+                badgeColorHex = "#e11d48"; // Rose Red
+                badgeClasses = "bg-rose-500/20 text-rose-300 border border-rose-500/40";
+            } else if (evalDiff >= 165 || winProbDelta <= -7) {
+                classification = "INACCURACY";
+                label = "?! Inaccuracy";
+                shortBadge = "?! Inacc";
+                badgeColorHex = "#d97706"; // Amber
+                badgeClasses = "bg-amber-500/20 text-amber-300 border border-amber-500/40";
+            }
+
+            // Build the detailed turn-by-turn "Why" description
+            const parts = [];
+
+            if (info.clinchedRound) {
+                if (gameState === "GAMEOVER") {
+                    parts.push(`Drew the final valid line in Round ${info.beforeRound} (+${info.beforeRound} pt${info.beforeRound > 1 ? 's' : ''}) to complete the game!`);
+                } else {
+                    parts.push(`Clinched Round ${info.beforeRound} (+${info.beforeRound} pt${info.beforeRound > 1 ? 's' : ''}) by eliminating the last ${info.destroyedCount > 0 ? info.destroyedCount + ' rival option(s)' : 'move'} and earned bonus turn initiative to start Round ${round}!`);
+                }
+            } else if (info.totalLegalMoves === 1) {
+                parts.push(`Only legal line available in Round ${info.beforeRound} (forced move).`);
+            } else {
+                // 1. Move destruction / interference impact
+                if (info.destroyedCount > 0) {
+                    parts.push(`Crossed and eliminated ${info.destroyedCount} competing valid line${info.destroyedCount === 1 ? '' : 's'} (ranked #${info.moveRank} of ${info.totalLegalMoves} options), leaving ${info.remainingValidCount} valid move${info.remainingValidCount === 1 ? '' : 's'} (~${info.remainingIndepCount} independent turn${info.remainingIndepCount === 1 ? '' : 's'}) in Round ${info.beforeRound}.`);
+                } else {
+                    parts.push(`Did not intersect any rival valid lines (ranked #${info.moveRank} of ${info.totalLegalMoves} options), leaving ${info.remainingValidCount} valid move${info.remainingValidCount === 1 ? '' : 's'} (~${info.remainingIndepCount} independent turn${info.remainingIndepCount === 1 ? '' : 's'}) in Round ${info.beforeRound}.`);
+                }
+
+                // 2. Parity & tactical consequence
+                if (info.remainingValidCount === 1) {
+                    parts.push(`Leaving exactly 1 valid line allows ${oppName} to immediately clinch Round ${info.beforeRound} (+${info.beforeRound} pt${info.beforeRound > 1 ? 's' : ''}) and keep the opening turn in the next round!`);
+                } else if (info.remainingIndepCount % 2 === 0) {
+                    parts.push(`Leaving an EVEN parity (${info.remainingIndepCount} independent moves) puts ${oppName} in a turn-order bind, favoring ${moverName} to claim the final scoring line of Round ${info.beforeRound}.`);
+                } else {
+                    parts.push(`Leaving an ODD parity (${info.remainingIndepCount} independent moves) gives ${oppName} the inside track to claim the last line of Round ${info.beforeRound}.`);
+                }
+
+                // 3. Next round seeding note
+                if (info.seededNextRoundMoves > 0 && info.beforeRound < 3) {
+                    parts.push(`Also seeded ${info.seededNextRoundMoves} new valid line${info.seededNextRoundMoves === 1 ? '' : 's'} for Round ${info.beforeRound + 1}.`);
+                }
+
+                // 4. Engine Best Move recommendation if suboptimal
+                if (classification === "INACCURACY" || classification === "BLUNDER") {
+                    const bp1 = info.bestMove[0];
+                    const bp2 = info.bestMove[1];
+                    if (info.bestRemainingValidCount === 0) {
+                        parts.push(`Better was #${bp1.id}–#${bp2.id}, which would have immediately clinched Round ${info.beforeRound}!`);
+                    } else {
+                        parts.push(`Engine preferred #${bp1.id}–#${bp2.id} (eliminating ${info.bestDestroyed} rival move${info.bestDestroyed === 1 ? '' : 's'} and leaving ${info.bestIndepCount} independent move${info.bestIndepCount === 1 ? '' : 's'}).`);
+                    }
+                }
+            }
+
+            moveHistory.push({
+                ...info,
+                afterRound: round,
+                p1ScoreAfter: players[1].score,
+                p2ScoreAfter: players[2].score,
+                winProbP1After,
+                moverWinProbAfter,
+                winProbDelta,
+                classification,
+                label,
+                shortBadge,
+                badgeColorHex,
+                badgeClasses,
+                whyText: parts.join(" ")
+            });
+        }
+
+        // =========================================================================
+        // 5C. INTERACTIVE REPLAY MODE CONTROLLER
+        // =========================================================================
+
+        /**
+         * Recomputes the valid helper lines at a specific replay step `step` (0..moveHistory.length).
+         */
+        function getReplayPreviewLinesAtStep(step) {
+            let mask = 0n;
+            for (let i = 0; i <= Math.min(existingLines.length - 1, step); i++) {
+                const l = existingLines[i];
+                if (!l) continue;
+                const sid = findSegmentId(l.p1, l.p2);
+                if (sid >= 0) mask |= (1n << BigInt(sid));
+            }
+            const targetRound = step === 0 ? 1 : (moveHistory[step - 1] ? moveHistory[step - 1].afterRound : round);
+            const validIds = getValidSegmentIdsForState(mask, targetRound);
+            return validIds.map(sid => [allSegments[sid].p1, allSegments[sid].p2]);
+        }
+
+        function enterReplayMode() {
+            if (!moveHistory || moveHistory.length === 0) {
+                showToast("No moves recorded yet to replay!", "error");
+                return;
+            }
+            closeGameOverModal();
+            stopReplayAutoPlay();
+            gameState = "REPLAY";
+            document.getElementById("replayAnalysisPanel").classList.remove("hidden");
+
+            buildReplayTimelinePills();
+            resizeCanvasToContainer();
+            // Start at Move 1 so the user immediately sees the first turn's analysis
+            setReplayStep(1);
+        }
+
+        function exitReplayModeToLobby() {
+            stopReplayAutoPlay();
+            document.getElementById("replayAnalysisPanel").classList.add("hidden");
+            returnToLobby();
+        }
+
+        function openGameOverModalFromReplay() {
+            stopReplayAutoPlay();
+            document.getElementById("gameOverModal").classList.remove("hidden");
+        }
+
+        function buildReplayTimelinePills() {
+            const strip = document.getElementById("replayTimelineStrip");
+            if (!strip) return;
+            strip.innerHTML = "";
+
+            // Step 0 pill
+            const startBtn = document.createElement("button");
+            startBtn.type = "button";
+            startBtn.id = "replayPill_0";
+            startBtn.onclick = () => setReplayStep(0);
+            startBtn.className = "shrink-0 px-2 py-1 rounded-md text-[10px] font-mono font-bold transition border bg-slate-950 text-slate-400 border-slate-800";
+            startBtn.textContent = "Start";
+            strip.appendChild(startBtn);
+
+            moveHistory.forEach((m, idx) => {
+                const stepNum = idx + 1;
+                const btn = document.createElement("button");
+                btn.type = "button";
+                btn.id = `replayPill_${stepNum}`;
+                btn.onclick = () => setReplayStep(stepNum);
+
+                let dotColor = "#38bdf8";
+                if (m.classification === "BEST") dotColor = "#10b981";
+                else if (m.classification === "INACCURACY") dotColor = "#f59e0b";
+                else if (m.classification === "BLUNDER") dotColor = "#f43f5e";
+
+                btn.className = "shrink-0 px-2 py-1 rounded-md text-[10px] font-mono font-bold transition border bg-slate-950 text-slate-300 border-slate-800 flex items-center gap-1";
+                btn.innerHTML = `<span class="w-1.5 h-1.5 rounded-full" style="background-color:${dotColor}"></span><span>M${stepNum}</span>`;
+                strip.appendChild(btn);
+            });
+        }
+
+        function setReplayStep(step) {
+            if (gameState !== "REPLAY") return;
+            replayStep = Math.max(0, Math.min(moveHistory.length, step));
+
+            // Highlight active pill in the timeline strip
+            for (let s = 0; s <= moveHistory.length; s++) {
+                const pill = document.getElementById(`replayPill_${s}`);
+                if (!pill) continue;
+                if (s === replayStep) {
+                    pill.classList.add("ring-2", "ring-indigo-400", "bg-slate-800", "text-white");
+                    pill.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+                } else {
+                    pill.classList.remove("ring-2", "ring-indigo-400", "bg-slate-800", "text-white");
+                }
+            }
+
+            const titleEl = document.getElementById("replayTurnTitle");
+            const badgeEl = document.getElementById("replayQualityBadge");
+            const deltaEl = document.getElementById("replayWinProbDelta");
+            const whyEl = document.getElementById("replayWhyDescription");
+            const bestHintEl = document.getElementById("replayBestLineHint");
+            const bestTextEl = document.getElementById("replayBestLineText");
+
+            if (replayStep === 0) {
+                titleEl.textContent = "Step 0 • Initial Board Setup (12 Points + Center Line)";
+                badgeEl.textContent = "Initial Setup";
+                badgeEl.className = "px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold uppercase tracking-wider bg-slate-800 text-slate-300";
+                deltaEl.textContent = `Initial Win Prob: ${players[1].name} ${initialP1WinProb}%`;
+                whyEl.textContent = `Points #${points[0].id} and #${points[1].id} (closest to the center) are pre-connected. Press Next ▶ to inspect Turn 1.`;
+                bestHintEl.classList.add("hidden");
+
+                // Sync top HUD to Step 0
+                document.getElementById("p1ScoreDisplay").textContent = "0 pts";
+                document.getElementById("p2ScoreDisplay").textContent = "0 pts";
+                p1WinProbability = initialP1WinProb;
+                updateWinProbDOM();
+            } else {
+                const m = moveHistory[replayStep - 1];
+                const moverName = players[m.mover].name;
+                titleEl.innerHTML = `Turn ${m.turnNumber}/${moveHistory.length} • R${m.beforeRound} • <span style="color:${players[m.mover].color}">${moverName}</span> connected #${m.p1.id}–#${m.p2.id}`;
+                badgeEl.textContent = m.label;
+                badgeEl.className = `px-2 py-0.5 rounded-md text-[10px] sm:text-xs font-extrabold uppercase tracking-wider ${m.badgeClasses}`;
+
+                const sign = m.winProbDelta > 0 ? `+${m.winProbDelta}%` : `${m.winProbDelta}%`;
+                const deltaColor = m.winProbDelta > 0 ? "text-emerald-400" : (m.winProbDelta < 0 ? "text-rose-400" : "text-slate-400");
+                deltaEl.className = `text-[11px] font-mono font-bold ${deltaColor}`;
+                deltaEl.textContent = `Win Prob: ${m.moverWinProbBefore}% → ${m.moverWinProbAfter}% (${sign})`;
+
+                whyEl.textContent = m.whyText;
+
+                if (m.playedSid !== m.bestSid && (m.classification === "INACCURACY" || m.classification === "BLUNDER")) {
+                    bestHintEl.classList.remove("hidden");
+                    bestTextEl.textContent = `Best: #${m.bestMove[0].id}–#${m.bestMove[1].id}`;
+                } else {
+                    bestHintEl.classList.add("hidden");
+                }
+
+                // Sync top HUD scores and Win Prob to this exact replay turn
+                document.getElementById("p1ScoreDisplay").textContent = `${m.p1ScoreAfter} pt${m.p1ScoreAfter === 1 ? '' : 's'}`;
+                document.getElementById("p2ScoreDisplay").textContent = `${m.p2ScoreAfter} pt${m.p2ScoreAfter === 1 ? '' : 's'}`;
+                p1WinProbability = m.winProbP1After;
+                updateWinProbDOM();
+            }
+
+            renderBoard();
+        }
+
+        function stepReplayBy(delta) {
+            if (gameState !== "REPLAY") return;
+            const next = replayStep + delta;
+            if (next > moveHistory.length) {
+                stopReplayAutoPlay();
+                return;
+            }
+            setReplayStep(next);
+        }
+
+        function toggleReplayAutoPlay() {
+            if (replayAutoInterval) {
+                stopReplayAutoPlay();
+            } else {
+                if (replayStep >= moveHistory.length) {
+                    setReplayStep(0);
+                }
+                document.getElementById("replayAutoBtnText").textContent = "⏸ Pause";
+                replayAutoInterval = setInterval(() => {
+                    if (gameState !== "REPLAY" || replayStep >= moveHistory.length) {
+                        stopReplayAutoPlay();
+                        return;
+                    }
+                    setReplayStep(replayStep + 1);
+                }, 2200);
+            }
+        }
+
+        function stopReplayAutoPlay() {
+            if (replayAutoInterval) {
+                clearInterval(replayAutoInterval);
+                replayAutoInterval = null;
+            }
+            const btnText = document.getElementById("replayAutoBtnText");
+            if (btnText) btnText.textContent = "▶ Auto";
+        }
+
+        // Keyboard navigation for Replay Mode
+        window.addEventListener("keydown", (e) => {
+            if (gameState !== "REPLAY") return;
+            if (!document.getElementById("playerModal").classList.contains("hidden")) return;
+            if (e.key === "ArrowLeft") {
+                e.preventDefault();
+                stopReplayAutoPlay();
+                stepReplayBy(-1);
+            } else if (e.key === "ArrowRight") {
+                e.preventDefault();
+                stopReplayAutoPlay();
+                stepReplayBy(1);
+            } else if (e.key === " ") {
+                e.preventDefault();
+                toggleReplayAutoPlay();
+            }
+        });
+
+        // =========================================================================
+        // 5D. OPTIMAL AI BOT ENGINE & LIVE WIN PROBABILITY CALCULATOR
         // =========================================================================
 
         function setGameMode(mode) {
@@ -1161,8 +2073,8 @@
             const activeClass = "bg-indigo-600 text-white shadow";
             const inactiveClass = "text-slate-400 hover:text-white";
 
-            document.getElementById("modePvPBtn").className = `py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${isPvP ? activeClass : inactiveClass}`;
-            document.getElementById("modePvBBtn").className = `py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${!isPvP ? activeClass : inactiveClass}`;
+            document.getElementById("modePvPBtn").className = `py-1.5 sm:py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${isPvP ? activeClass : inactiveClass}`;
+            document.getElementById("modePvBBtn").className = `py-1.5 sm:py-2 px-2.5 rounded-lg text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 ${!isPvP ? activeClass : inactiveClass}`;
 
             const botOrderRow = document.getElementById("botOrderRow");
             if (isPvP) {
@@ -1257,9 +2169,6 @@
             }, 320);
         }
 
-        /**
-         * Bit-length / popcount helper for 66-bit BigInt masks.
-         */
         function popcountBigInt(mask) {
             let c = 0;
             let m = mask;
@@ -1270,9 +2179,6 @@
             return c;
         }
 
-        /**
-         * Computes the list of valid segment IDs for a given drawn-lines bitmask and target round R.
-         */
         function getValidSegmentIdsForState(drawnMask, targetRound) {
             const validIds = [];
             for (let s = 0; s < allSegments.length; s++) {
@@ -1285,11 +2191,6 @@
             return validIds;
         }
 
-        /**
-         * Shared state-transition simulator for drawing segment `sid` in Round `curRound` by `turnPlayer`.
-         * Enforces the exact rule: if drawing `sid` leaves 0 valid moves in `curRound`, `turnPlayer`
-         * scores `curRound` points AND keeps the turn (`nextTurnPlayer = turnPlayer`) for the next round!
-         */
         function simulateBitmaskMove(drawnMask, zHash, curRound, turnPlayer, p1Score, p2Score, sid) {
             const nextMask = drawnMask | (1n << BigInt(sid));
             let nextHash = zHash ^ zobristSegKeys[sid];
@@ -1302,14 +2203,12 @@
             let gameEnded = false;
 
             if (nextValidIds.length === 0) {
-                // `turnPlayer` drew the last valid line of `curRound` -> award `curRound` points
                 if (turnPlayer === 1) {
                     nextP1Score += curRound;
                 } else {
                     nextP2Score += curRound;
                 }
 
-                // Advance round until valid moves exist or Round 3 finishes
                 let foundNext = false;
                 while (nextRound < 3) {
                     nextHash ^= zobristRoundKeys[nextRound];
@@ -1324,9 +2223,7 @@
                 if (!foundNext) {
                     gameEnded = true;
                 }
-                // `nextTurnPlayer` stays `turnPlayer` (round-winner starts the next round!)
             } else {
-                // Normal turn switch within the same round
                 nextTurnPlayer = turnPlayer === 1 ? 2 : 1;
                 nextHash ^= zobristTurnKey;
             }
@@ -1343,9 +2240,6 @@
             };
         }
 
-        /**
-         * Estimates the maximum independent set size of the remaining valid moves in Round R.
-         */
         function estimateIndependentMoveCount(validIds) {
             const n = validIds.length;
             if (n <= 1) return n;
@@ -1384,10 +2278,6 @@
             return indepCount;
         }
 
-        /**
-         * Heuristic board evaluation from `perspectivePlayerId`'s viewpoint.
-         * Accounts for the extra value of clinching a round (points + starting initiative in the next round).
-         */
         function evaluateStateForPlayer(drawnMask, curRound, turnPlayer, p1Score, p2Score, validIds, perspectivePlayerId) {
             const myScore = perspectivePlayerId === 1 ? p1Score : p2Score;
             const oppScore = perspectivePlayerId === 1 ? p2Score : p1Score;
@@ -1395,7 +2285,6 @@
             let score = (myScore - oppScore) * 1000;
 
             const isMyTurn = (turnPlayer === perspectivePlayerId);
-            // Clinching Round R gives R points PLUS first-move initiative in Round R+1
             const initiativeBonus = curRound < 3 ? 65 : 0;
             const roundWeight = curRound * 120 + initiativeBonus;
 
@@ -1421,9 +2310,6 @@
             return score;
         }
 
-        /**
-         * Helper to order candidate moves by how many other valid moves they intersect/destroy.
-         */
         function orderCandidateMoves(validIds) {
             let validMask = 0n;
             for (let i = 0; i < validIds.length; i++) {
@@ -1437,10 +2323,6 @@
             return scored.map(x => x.sid);
         }
 
-        /**
-         * Selects the best move for the AI Bot using Iterative Deepening Minimax
-         * with Alpha-Beta Pruning, Zobrist Transposition Table, and Interference Move Ordering.
-         */
         function findBestBotMove() {
             if (previewLines.length === 0) return null;
             if (previewLines.length === 1) return previewLines[0];
@@ -1588,16 +2470,8 @@
             return [chosenSeg.p1, chosenSeg.p2];
         }
 
-        /**
-         * Calculates and updates the live Total Win Probability Percentage for Player 1 and Player 2
-         * after every line is drawn (and at the start of the game).
-         * Combines:
-         *  1. Exact mathematical lock detection (when a player's lead > remaining points possible)
-         *  2. Tactical 3-ply Minimax evaluation from Player 1's perspective
-         *  3. 40 smart bitmask Monte-Carlo rollouts to the end of Round 3
-         */
         function updateWinProbability() {
-            if (gameState === "WAITING" || allSegments.length === 0) {
+            if (gameState === "WAITING" || gameState === "LOADING" || allSegments.length === 0) {
                 p1WinProbability = 50;
                 updateWinProbDOM();
                 return;
@@ -1611,7 +2485,6 @@
                 return;
             }
 
-            // Maximum remaining points available from current `round` through Round 3
             let maxRemainingPts = 0;
             for (let r = round; r <= 3; r++) maxRemainingPts += r;
 
@@ -1629,7 +2502,6 @@
             const { mask: rootMask, hash: rootHash } = getCurrentBoardMaskAndHash();
             const rootValidIds = getValidSegmentIdsForState(rootMask, round);
 
-            // 1. Tactical shallow Minimax evaluation for Player 1
             function quickMinimaxP1(drawnMask, zHash, curRound, turnPlayer, p1S, p2S, depth, alpha, beta, validIds) {
                 if (depth <= 0 || validIds.length === 0) {
                     return evaluateStateForPlayer(drawnMask, curRound, turnPlayer, p1S, p2S, validIds, 1);
@@ -1637,7 +2509,7 @@
                 const ordered = orderCandidateMoves(validIds);
                 const isMax = (turnPlayer === 1);
                 let best = isMax ? -Infinity : Infinity;
-                const limit = Math.min(ordered.length, 8); // Top 8 high-impact moves for instant UI speed
+                const limit = Math.min(ordered.length, 8);
 
                 for (let i = 0; i < limit; i++) {
                     const sim = simulateBitmaskMove(drawnMask, zHash, curRound, turnPlayer, p1S, p2S, ordered[i]);
@@ -1683,10 +2555,8 @@
                 Infinity,
                 rootValidIds
             );
-            // Logistic conversion of tactical evaluation into [0..1] probability
             const heuristicProb = 1 / (1 + Math.exp(-evalScore / 650));
 
-            // 2. 40 Smart Bitmask Monte-Carlo Rollouts to the end of Round 3
             const ROLLOUTS = 40;
             let p1RolloutPoints = 0;
 
@@ -1706,7 +2576,6 @@
                     let chosenSid = mValid[0];
 
                     if (mValid.length > 1) {
-                        // Check if any move immediately clinches the current round (destroys all other valid moves)
                         let validMask = 0n;
                         for (let k = 0; k < mValid.length; k++) {
                             validMask |= (1n << BigInt(mValid[k]));
@@ -1744,8 +2613,6 @@
             }
 
             const mcProb = p1RolloutPoints / ROLLOUTS;
-
-            // Blend tactical Minimax probability (55%) + Monte-Carlo rollout probability (45%)
             const blended = 0.55 * heuristicProb + 0.45 * mcProb;
             p1WinProbability = Math.max(1, Math.min(99, Math.round(blended * 100)));
             updateWinProbDOM();
@@ -1926,8 +2793,8 @@
             const activeClass = "bg-indigo-600 text-white shadow";
             const inactiveClass = "text-slate-400 hover:text-white";
 
-            document.getElementById("lobbyTime30Btn").className = `py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition ${is30 ? activeClass : inactiveClass}`;
-            document.getElementById("lobbyTime60Btn").className = `py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition ${!is30 ? activeClass : inactiveClass}`;
+            document.getElementById("lobbyTime30Btn").className = `py-1.5 sm:py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition ${is30 ? activeClass : inactiveClass}`;
+            document.getElementById("lobbyTime60Btn").className = `py-1.5 sm:py-2 px-3 rounded-lg text-xs sm:text-sm font-bold transition ${!is30 ? activeClass : inactiveClass}`;
 
             document.getElementById("barTime30Btn").className = `fluid-btn px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md sm:rounded-lg font-bold transition ${is30 ? activeClass : inactiveClass}`;
             document.getElementById("barTime60Btn").className = `fluid-btn px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md sm:rounded-lg font-bold transition ${!is30 ? activeClass : inactiveClass}`;
@@ -1967,6 +2834,26 @@
             document.getElementById("lobbyP2Dot").style.backgroundColor = players[2].color;
             document.getElementById("lobbyP2Name").textContent = players[2].name;
 
+            // Show/hide Save Dots & Replay buttons
+            const hasActivePoints = (points && points.length === pointCount && (gameState === "PLAYING" || gameState === "GAMEOVER" || gameState === "REPLAY"));
+            const hudSaveBtn = document.getElementById("hudSaveDotsBtn");
+            const footerSaveBtn = document.getElementById("footerSaveDotsBtn");
+            const footerReplayBtn = document.getElementById("footerReplayBtn");
+
+            if (hudSaveBtn) {
+                hudSaveBtn.classList.toggle("hidden", !hasActivePoints);
+                hudSaveBtn.classList.toggle("inline-flex", hasActivePoints);
+            }
+            if (footerSaveBtn) {
+                footerSaveBtn.classList.toggle("hidden", !hasActivePoints);
+                footerSaveBtn.classList.toggle("inline-flex", hasActivePoints);
+            }
+            if (footerReplayBtn) {
+                const showReplayBtn = (gameState === "GAMEOVER" && moveHistory.length > 0);
+                footerReplayBtn.classList.toggle("hidden", !showReplayBtn);
+                footerReplayBtn.classList.toggle("inline-flex", showReplayBtn);
+            }
+
             // Update Player 1 & Player 2 Top Cards
             for (let pid of [1, 2]) {
                 const isTurn = (gameState === "PLAYING" && currentTurn === pid);
@@ -1980,7 +2867,9 @@
 
                 nameEl.textContent = players[pid].name;
                 swatch.style.backgroundColor = players[pid].color;
-                scoreEl.textContent = `${players[pid].score} pt${players[pid].score === 1 ? '' : 's'}`;
+                if (gameState !== "REPLAY") {
+                    scoreEl.textContent = `${players[pid].score} pt${players[pid].score === 1 ? '' : 's'}`;
+                }
 
                 if (isTurn) {
                     card.style.borderColor = players[pid].color;
@@ -1997,7 +2886,9 @@
                     card.style.boxShadow = "none";
                     turnDot.classList.add("hidden");
                     turnDot.classList.remove("absolute");
-                    statusLabel.textContent = gameState === "WAITING" ? "Ready" : (gameState === "GAMEOVER" ? "Done" : "Waiting");
+                    statusLabel.textContent = (gameState === "WAITING" || gameState === "LOADING")
+                        ? "Ready"
+                        : (gameState === "REPLAY" ? "Replay" : (gameState === "GAMEOVER" ? "Done" : "Waiting"));
                     statusLabel.style.color = "#94a3b8";
                     timerEl.classList.remove("text-white");
                     timerEl.classList.add("text-slate-400");
@@ -2009,7 +2900,7 @@
                 const badge = document.getElementById(`roundBadge${r}`);
                 if (gameState === "PLAYING" && r === round) {
                     badge.className = "fluid-badge px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-lg font-bold bg-indigo-600 text-white shadow-sm transition-all";
-                } else if ((gameState === "PLAYING" && r < round) || gameState === "GAMEOVER") {
+                } else if ((gameState === "PLAYING" && r < round) || gameState === "GAMEOVER" || gameState === "REPLAY") {
                     badge.className = "fluid-badge px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-lg font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 transition-all";
                 } else {
                     badge.className = "fluid-badge px-2 py-0.5 sm:px-2.5 sm:py-0.5 rounded-lg font-medium bg-slate-950 text-slate-500 border border-slate-800/70 transition-all";
@@ -2019,9 +2910,12 @@
             // Update Valid Moves & Rule Hint
             const validCountEl = document.getElementById("validMovesCount");
             const ruleHint = document.getElementById("ruleHintText");
-            if (gameState === "WAITING") {
+            if (gameState === "WAITING" || gameState === "LOADING") {
                 validCountEl.textContent = "—";
                 ruleHint.innerHTML = `Press <span class="text-emerald-400 font-bold">Play</span>`;
+            } else if (gameState === "REPLAY") {
+                validCountEl.textContent = `${replayStep}/${moveHistory.length}`;
+                ruleHint.innerHTML = `<span class="text-amber-400 font-bold">Replay Mode</span>`;
             } else if (gameState === "GAMEOVER") {
                 validCountEl.textContent = "0";
                 ruleHint.innerHTML = `<span class="text-emerald-400 font-bold">Game Over</span>`;
@@ -2058,6 +2952,12 @@
                 mainActionBtn.className = "fluid-btn inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 transition active:scale-95";
                 mainActionText.textContent = "New Game";
                 mainActionIcon.innerHTML = `<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" stroke="currentColor" fill="none" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>`;
+            } else if (gameState === "REPLAY") {
+                pauseBtn.classList.add("hidden");
+                pauseBtn.classList.remove("inline-flex");
+                mainActionBtn.className = "fluid-btn inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-lg sm:rounded-xl font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 transition active:scale-95";
+                mainActionText.textContent = "New Game";
+                mainActionIcon.innerHTML = `<path d="M8 5v14l11-7z"/>`;
             } else {
                 pauseBtn.classList.add("hidden");
                 pauseBtn.classList.remove("inline-flex");
@@ -2066,7 +2966,6 @@
                 mainActionIcon.innerHTML = `<path d="M8 5v14l11-7z"/>`;
             }
 
-            // Keep Win Probability Bar colors & names synced
             updateWinProbDOM();
         }
 
@@ -2152,7 +3051,11 @@
 
             closePlayerModal();
             updateHUD();
-            renderBoard();
+            if (gameState === "REPLAY") {
+                setReplayStep(replayStep);
+            } else {
+                renderBoard();
+            }
         }
 
         function closePlayerModal() {
@@ -2165,19 +3068,22 @@
         });
 
         // =========================================================================
-        // 10. LOBBY, PLAY START & GAME OVER WORKFLOWS
+        // 10. LOBBY, LOADING CIRCLE, PLAY START & GAME OVER WORKFLOWS
         // =========================================================================
 
         function handleMainActionButton() {
             if (gameState === "WAITING" || gameState === "GAMEOVER") {
-                startNewPlaySession();
-            } else {
+                startNewPlaySession(false);
+            } else if (gameState === "PLAYING" || gameState === "REPLAY") {
                 returnToLobby();
             }
         }
 
         function returnToLobby() {
             closeGameOverModal();
+            stopReplayAutoPlay();
+            document.getElementById("replayAnalysisPanel").classList.add("hidden");
+
             if (botTurnTimeoutId) {
                 clearTimeout(botTurnTimeoutId);
                 botTurnTimeoutId = null;
@@ -2189,6 +3095,7 @@
             points = [];
             existingLines = [];
             previewLines = [];
+            moveHistory = [];
             firstSelectedPoint = null;
             hoveredPoint = null;
             players[1].score = 0;
@@ -2197,6 +3104,7 @@
             turnTimeRemainingMs = turnDurationSeconds * 1000;
 
             document.getElementById("pauseOverlay").classList.add("hidden");
+            document.getElementById("loadingOverlay").classList.add("hidden");
             document.getElementById("startLobbyOverlay").classList.remove("hidden");
 
             resizeCanvasToContainer();
@@ -2204,36 +3112,67 @@
             updateHUD();
         }
 
-        function startNewPlaySession() {
+        function startNewPlaySession(forceRandomDots = false) {
+            if (gameState === "LOADING") return;
             closeGameOverModal();
+            stopReplayAutoPlay();
+            document.getElementById("replayAnalysisPanel").classList.add("hidden");
+
+            if (forceRandomDots) {
+                customUploadedDots = null;
+                updateUploadedDotsUI();
+            }
+
             if (botTurnTimeoutId) {
                 clearTimeout(botTurnTimeoutId);
                 botTurnTimeoutId = null;
             }
             isBotThinking = false;
             botAnimState = null;
+            moveHistory = [];
+            replayStep = 0;
+
+            // Show Loading Circle Overlay
+            gameState = "LOADING";
             document.getElementById("startLobbyOverlay").classList.add("hidden");
             document.getElementById("pauseOverlay").classList.add("hidden");
 
-            applyBotSlotNaming();
-            gameState = "PLAYING";
-            timerPaused = false;
-            document.getElementById("pauseBtnText").textContent = "Pause";
-            document.getElementById("pauseIcon").innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
-
-            players[1].score = 0;
-            players[2].score = 0;
-            currentTurn = 1;
-            firstSelectedPoint = null;
-            hoveredPoint = null;
-            turnTimeRemainingMs = turnDurationSeconds * 1000;
-
-            generatePoints();
-            resizeCanvasToContainer();
-            updateTimerDisplayDOM();
+            const loadingOverlay = document.getElementById("loadingOverlay");
+            const loadingSubtext = document.getElementById("loadingSubtext");
+            if (loadingSubtext) {
+                loadingSubtext.textContent = customUploadedDots
+                    ? `Loading "${customUploadedDots.filename}" & computing intersections...`
+                    : "Generating 12 valid points & 66-segment topology...";
+            }
+            loadingOverlay.classList.remove("hidden");
             updateHUD();
-            lastFrameTime = performance.now();
-            triggerBotTurnIfNeeded();
+
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    applyBotSlotNaming();
+                    timerPaused = false;
+                    document.getElementById("pauseBtnText").textContent = "Pause";
+                    document.getElementById("pauseIcon").innerHTML = `<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>`;
+
+                    players[1].score = 0;
+                    players[2].score = 0;
+                    currentTurn = 1;
+                    firstSelectedPoint = null;
+                    hoveredPoint = null;
+
+                    generatePoints();
+
+                    loadingOverlay.classList.add("hidden");
+                    gameState = "PLAYING";
+                    turnTimeRemainingMs = turnDurationSeconds * 1000;
+                    lastFrameTime = performance.now();
+
+                    resizeCanvasToContainer();
+                    updateTimerDisplayDOM();
+                    updateHUD();
+                    triggerBotTurnIfNeeded();
+                }, 320);
+            });
         }
 
         function endGame() {
@@ -2257,15 +3196,20 @@
                 subEl.textContent = `Both players finished with ${players[1].score} points.`;
             }
 
-            for (let pid of [1, 2]) {
-                document.getElementById(`goP${pid}Dot`).style.backgroundColor = players[pid].color;
-                document.getElementById(`goP${pid}Name`).textContent = players[pid].name;
-                document.getElementById(`goP${pid}Score`).textContent = `${players[pid].score} pts`;
-                const linesCount = existingLines.filter(l => l.owner === pid).length;
-                document.getElementById(`goP${pid}Lines`).textContent = `${linesCount} line${linesCount === 1 ? '' : 's'} drawn`;
-            }
-
-            document.getElementById("gameOverModal").classList.remove("hidden");
+            // Delay 1 frame so the final move's `finalizeMoveRecord` is already pushed into `moveHistory`
+            setTimeout(() => {
+                for (let pid of [1, 2]) {
+                    document.getElementById(`goP${pid}Dot`).style.backgroundColor = players[pid].color;
+                    document.getElementById(`goP${pid}Name`).textContent = players[pid].name;
+                    document.getElementById(`goP${pid}Score`).textContent = `${players[pid].score} pts`;
+                    const playerMoves = moveHistory.filter(m => m.mover === pid);
+                    const bestMoves = playerMoves.filter(m => m.classification === "BEST").length;
+                    document.getElementById(`goP${pid}Lines`).textContent = `${playerMoves.length} line${playerMoves.length === 1 ? '' : 's'} drawn`;
+                    document.getElementById(`goP${pid}Accuracy`).textContent = `${bestMoves}/${playerMoves.length} Best Moves`;
+                }
+                updateHUD();
+                document.getElementById("gameOverModal").classList.remove("hidden");
+            }, 20);
         }
 
         function closeGameOverModal() {
@@ -2289,6 +3233,7 @@
         });
 
         window.onload = function () {
+            updateUploadedDotsUI();
             resizeCanvasToContainer();
             updateTimerDisplayDOM();
             updateHUD();
